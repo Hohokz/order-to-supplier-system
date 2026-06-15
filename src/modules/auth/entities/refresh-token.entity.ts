@@ -6,5 +6,5 @@ export interface RefreshToken extends QueryResultRow {
   token_hash: string;
   expires_at: Date;
   revoked: boolean;
-  created_at: Date;
+  created_date: Date;
 }

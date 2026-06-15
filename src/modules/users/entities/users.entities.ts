@@ -22,10 +22,9 @@ export function toSafeUser(user: User): SafeUser {
     id: user.id,
     username: user.username,
     name: user.name,
-    lineId: user.line_id,
-    role: user.user_role,
+    user_role: user.user_role, // <- renamed here
+    line_id: user.line_id,
     created_date: user.created_date,
-    lasted_login_date: user.lasted_login_date,
   };
 }
 

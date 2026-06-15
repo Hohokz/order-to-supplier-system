@@ -36,7 +36,7 @@ async findByUsername(username: string): Promise<User | null> {
 
     const [usersResult, countResult] = await Promise.all([
       query<User>(
-        `SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+        `SELECT * FROM users ORDER BY created_date DESC LIMIT $1 OFFSET $2`,
         [limit, offset]
       ),
       query<{ count: string }>(`SELECT COUNT(*) FROM users`),
