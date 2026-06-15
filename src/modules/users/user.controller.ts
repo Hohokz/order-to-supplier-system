@@ -47,6 +47,17 @@ export const usersController = {
             return handleError(err);
         }
     },
+    async getById(req: NextRequest, params: { id: string }) {
+        try {
+            const auth = requireAuth(req);
+            requireRole(auth, 'APPROVER');
+
+            const profile = await usersService.getUserById(params.id);
+            return NextResponse.json(profile);
+        } catch (err) {
+            return handleError(err);
+        }
+    },
 
     async create(req: NextRequest) {
         try {
@@ -54,6 +65,7 @@ export const usersController = {
             requireRole(auth, 'APPROVER');
 
             const body = createProfileSchema.parse(await req.json());
+            console.log('Creating user with data', body);
             const user = await usersService.createUser(body);
             return NextResponse.json(user, { status: 201 });
         } catch (err) {

@@ -10,7 +10,7 @@ import {
     IncorrectPasswordError,
     CannotModifySelfRoleError,
 } from './user.error';
-import type { User } from './entities/users.entities';
+import type { User } from './entities/user.entities';
 
 vi.mock('./user.repository', () => ({
     userRepository: {

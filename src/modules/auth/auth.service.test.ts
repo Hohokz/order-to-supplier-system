@@ -15,7 +15,7 @@ import {
   InvalidRefreshTokenError,
   UserNotFoundError,
 } from './auth.error';
-import type { User ,UserRole } from '../users/entities/users.entities';
+import type { User ,UserRole } from '../users/entities/user.entities';
 
 vi.mock('./auth.repository', () => ({
   authRepository: {

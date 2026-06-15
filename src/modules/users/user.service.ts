@@ -2,7 +2,7 @@
 import bcrypt from 'bcrypt';
 import { userRepository } from './user.repository';
 import { authRepository } from '../auth/auth.repository';
-import { toSafeUser, SafeUser, UserRole } from './entities/users.entities';
+import { toSafeUser, SafeUser, UserRole } from './entities/user.entities';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateProfileDto } from './dto/create-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -31,6 +31,14 @@ export const usersService = {
     return toSafeUser(user);
   },
 
+  async getUserById(userId: string): Promise<SafeUser> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new UserNotFoundError();
+    }
+    return toSafeUser(user);
+  },
+
   async createUser(data: CreateProfileDto): Promise<SafeUser> {
   const existing = await userRepository.findByUsername(data.username);
   if (existing) {
@@ -43,7 +51,7 @@ export const usersService = {
     passwordHash,
     name: data.name,
     lineId: data.line_id,
-    userRole: data.user_role,
+    userRole: data.user_role
   });
 
   return toSafeUser(user);
@@ -111,6 +119,10 @@ export const usersService = {
     await authRepository.revokeAllUserTokens(targetUserId);
 
     return toSafeUser(updated);
+  },
+
+  async updateLastedLoginDate(userId: string): Promise<void> {
+    await userRepository.updateLastedLoginDate(userId, new Date());
   },
 
   async deleteUser(targetUserId: string, requestingUserId: string): Promise<void> {

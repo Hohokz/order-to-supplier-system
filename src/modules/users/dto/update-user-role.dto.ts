@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_ROLES } from '../entities/users.entities';
+import { USER_ROLES } from '../entities/user.entities';
 
 export const updateRoleSchema = z.object({
   role: z.enum(USER_ROLES),

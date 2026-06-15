@@ -6,7 +6,7 @@ import {
   TokenExpiredError,
   InvalidTokenError,
 } from '@/lib/jwt';
-import type { UserRole } from '../modules/users/entities/users.entities';
+import type { UserRole } from '../modules/users/entities/user.entities';
 
 export class UnauthorizedError extends Error {
   constructor(message = 'Unauthorized') {

@@ -1,5 +1,5 @@
 import { query } from '@/lib/db';
-import { User, UserRole } from './entities/users.entities';
+import { User, UserRole } from './entities/user.entities';
 
 interface CreateUserInput {
   username: string;
@@ -7,11 +7,15 @@ interface CreateUserInput {
   name: string;
   lineId: string;
   userRole: UserRole;
+  createdDate?: Date;
+  updatedDate?: Date;
+  lastedLoginDate?: Date;
 }
 
 interface UpdateProfileInput {
   name?: string;
   username?: string;
+  lineId?: string;
 }
 
 export const userRepository = {
@@ -28,6 +32,7 @@ async findByUsername(username: string): Promise<User | null> {
       `SELECT * FROM users WHERE id = $1`,
       [id]
     );
+    console.log('findById result', { id, user: rows[0] }); // Debug log to verify query result
     return rows[0] ?? null;
   },
 
@@ -49,11 +54,12 @@ async findByUsername(username: string): Promise<User | null> {
   },
 
   async create(data: CreateUserInput): Promise<User> {
+    const now = new Date();
     const { rows } = await query<User>(
-      `INSERT INTO users (username, password_hash, name, user_role)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO users (username, password_hash, name, user_role, line_id, created_date, updated_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [data.username, data.passwordHash, data.name, data.userRole]
+      [data.username, data.passwordHash, data.name, data.userRole, data.lineId, now, now]
     );
 
     const user = rows[0];
@@ -76,11 +82,15 @@ async findByUsername(username: string): Promise<User | null> {
       fields.push(`username = $${paramIndex++}`);
       values.push(data.username);
     }
+    if(data.lineId !== undefined){
+      fields.push(`line_id = $${paramIndex++}`);
+      values.push(data.lineId);
+    }
 
     if (fields.length === 0) {
       return this.findById(id);
     }
-
+    console.log('Updating user profile', { id, data, fields, values }); // Debug log to verify update data
     values.push(id);
 
     const { rows } = await query<User>(
@@ -104,6 +114,13 @@ async findByUsername(username: string): Promise<User | null> {
       [role, id]
     );
     return rows[0] ?? null;
+  },
+
+  async updateLastedLoginDate(id: string, date: Date): Promise<void> {
+    await query(`UPDATE users SET lasted_login_date = $1 WHERE id = $2`, [
+      date,
+      id,
+    ]);
   },
 
   async delete(id: string): Promise<boolean> {

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { authService } from './auth.service';
+import { usersService } from '../users/user.service';
 import { loginSchema } from './dto/login.dto';
 import { formatZodError } from '../../lib/zod-error';
 import {
@@ -57,9 +58,9 @@ export const authController = {
     try {
       const body = loginSchema.parse(await req.json());
       const { user, accessToken, refreshToken } = await authService.login(body);
-
       const res = NextResponse.json({ user, accessToken });
       setRefreshCookie(res, refreshToken);
+      await usersService.updateLastedLoginDate(user.id);
       return res;
     } catch (err) {
       return handleAuthError(err);

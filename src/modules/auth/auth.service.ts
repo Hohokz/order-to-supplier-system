@@ -10,7 +10,7 @@ import {
   InvalidTokenError,
   TokenExpiredError,
 } from '@/lib/jwt';
-import { toSafeUser, SafeUser, UserRole, isUserRole } from '../users/entities/users.entities';
+import { toSafeUser, SafeUser, UserRole, isUserRole } from '../users/entities/user.entities';
 import {
   InvalidCredentialsError,
   InvalidRefreshTokenError,
@@ -74,6 +74,7 @@ export const authService = {
     const tokenPairUser = { id: user.id, username: user.username, role: userRoleNum };
 
     const tokens = await issueTokenPair(tokenPairUser);
+    
 
     return {
       user: toSafeUser(user),

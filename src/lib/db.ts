@@ -17,6 +17,10 @@ export const pool =
     connectionTimeoutMillis: 5000,
   });
 
+  pool.on('connect', (client) => {
+  client.query('SET search_path TO "order-to-supplier-system"');
+});
+
 pool.on('error', (err) => {
   console.error('Unexpected error on idle PostgreSQL client', err);
 });
