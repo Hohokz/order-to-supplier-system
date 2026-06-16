@@ -5,37 +5,8 @@ import { updateProfileSchema } from './dto/update-profile.dto';
 import { changePasswordSchema } from './dto/change-password.dto';
 import { updateRoleSchema } from './dto/update-user-role.dto';
 import { listUsersQuerySchema } from './dto/list-users.dto';
-import { requireAuth, requireRole, UnauthorizedError, ForbiddenError } from '../../lib/auth-guard';
-import {
-    UserNotFoundError,
-    UsernameAlreadyExistsError,
-    IncorrectPasswordError,
-    CannotModifySelfRoleError,
-} from './user.error';
-import { ZodError } from 'zod';
-
-function handleError(err: unknown) {
-    if (err instanceof ZodError) {
-        return NextResponse.json({ error: err.issues }, { status: 400 });
-    }
-    if (err instanceof UnauthorizedError) {
-        return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    if (err instanceof ForbiddenError || err instanceof CannotModifySelfRoleError) {
-        return NextResponse.json({ error: err.message }, { status: 403 });
-    }
-    if (err instanceof UserNotFoundError) {
-        return NextResponse.json({ error: err.message }, { status: 404 });
-    }
-    if (err instanceof UsernameAlreadyExistsError) {
-        return NextResponse.json({ error: err.message }, { status: 409 });
-    }
-    if (err instanceof IncorrectPasswordError) {
-        return NextResponse.json({ error: err.message }, { status: 401 });
-    }
-    console.error('Unhandled error in users module', err);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
-}
+import { requireAuth, requireRole} from '../../lib/auth-guard';
+import { handleError } from '../../lib/error-handler';
 
 export const usersController = {
     async getMe(req: NextRequest) {

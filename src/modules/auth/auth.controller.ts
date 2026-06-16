@@ -1,16 +1,9 @@
-// src/modules/auth/auth.controller.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { ZodError } from 'zod';
 import { authService } from './auth.service';
 import { usersService } from '../users/user.service';
 import { loginSchema } from './dto/login.dto';
-import { formatZodError } from '../../lib/zod-error';
-import {
-  InvalidCredentialsError,
-  InvalidRefreshTokenError,
-  UserNotFoundError,
-} from './auth.error';
-import {UsernameAlreadyExistsError} from '../users/user.error';
+import { InvalidRefreshTokenError, UserNotFoundError } from './auth.error';
+import { handleError } from '../../lib/error-handler';
 
 const REFRESH_COOKIE = 'refreshToken';
 const isProd = process.env.NODE_ENV === 'production';
@@ -35,24 +28,6 @@ function clearRefreshCookie(res: NextResponse): void {
   });
 }
 
-function handleAuthError(err: unknown): NextResponse {
-  if (err instanceof ZodError) {
-    return NextResponse.json({ error: formatZodError(err) }, { status: 400 });
-  }
-  if (err instanceof UsernameAlreadyExistsError) {
-    return NextResponse.json({ error: err.message }, { status: 409 });
-  }
-  if (err instanceof InvalidCredentialsError) {
-    return NextResponse.json({ error: err.message }, { status: 401 });
-  }
-  if (err instanceof UserNotFoundError) {
-    return NextResponse.json({ error: err.message }, { status: 404 });
-  }
-
-  console.error('Unhandled error in auth module', err);
-  return NextResponse.json({ error: 'Internal error' }, { status: 500 });
-}
-
 export const authController = {
   async login(req: NextRequest) {
     try {
@@ -63,7 +38,7 @@ export const authController = {
       await usersService.updateLastedLoginDate(user.id);
       return res;
     } catch (err) {
-      return handleAuthError(err);
+      return handleError(err);
     }
   },
 

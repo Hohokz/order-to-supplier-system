@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { usersController } from '@/modules/users/user.controller';
-export { openapiList } from '@/modules/users/user.openapi';
+import { suppliersController } from '@/modules/suppliers/supplier.controller';
+export { openapiList } from '@/modules/suppliers/supplier.openapi';
+
 
 export const dynamic = 'force-dynamic';
 
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  return usersController.list(req);
+  return suppliersController.list(req);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  return usersController.create(req);
+  return suppliersController.create(req);
 }
