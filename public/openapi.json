@@ -84,6 +84,79 @@
         }
       }
     },
+    "/api/units": {
+      "get": {
+        "summary": "ดึงข้อมูลหน่วยนับทั้งหมด (พร้อม Pagination)",
+        "tags": [
+          "Units"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "summary": "สร้างหน่วยนับใหม่ (เฉพาะ APPROVER)",
+        "tags": [
+          "Units"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/units/{id}": {
+      "get": {
+        "summary": "ดึงข้อมูลหน่วยนับตาม ID",
+        "tags": [
+          "Units"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "put": {
+        "summary": "แก้ไขข้อมูลหน่วยนับ (เฉพาะ APPROVER)",
+        "tags": [
+          "Units"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "delete": {
+        "summary": "ลบหน่วยนับ (เฉพาะ APPROVER)",
+        "tags": [
+          "Units"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/suppliers": {
       "post": {
         "summary": "Create a new supplier",

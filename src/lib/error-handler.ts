@@ -14,6 +14,7 @@ import {
     UserNotFoundError
 } from '@/modules/users/user.error';
 import { ForbiddenError, UnauthorizedError } from './auth-guard';
+import { UnitNotFoundError } from '@/modules/units/unit.error';
 
 // นำเข้าฟังก์ชันจัดรูปแบบ Zod Error ของคุณ
 export interface FormattedZodIssue {
@@ -82,6 +83,11 @@ export function handleError(err: unknown) {
     }
     if (err instanceof CannotDeleteSupplierError) {
         return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+
+    //4. จัดการ Unit Domain Error
+    if(err instanceof UnitNotFoundError){
+        return NextResponse.json({error: err.message}, {status:404})
     }
 
     // 3. จัดการ Error อื่นๆ (Fallback)
