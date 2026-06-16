@@ -1,6 +1,6 @@
 import { supplierRepository } from './supplier.repository';
 import { Supplier } from './entities/supplier.entities';
-import { CreateSupplierInput, UpdateSupplierInput } from './dto/input-supplier.dto';
+import { CreateSupplierPayload, UpdateSupplierPayload } from './dto/input-supplier.dto';
 import { SupplierNotFoundError } from './supplier.error';
 
 export const suppliersService = {
@@ -23,12 +23,11 @@ export const suppliersService = {
     };
   },
 
-  async createSupplier(data: CreateSupplierInput): Promise<Supplier> {
-    // ตรงนี้สามารถใส่ Business Validation เช่น ตรวจสอบ Tax_ID ซ้ำ
+  async createSupplier(data: CreateSupplierPayload): Promise<Supplier> {
     return await supplierRepository.create(data);
   },
 
-  async updateSupplier(id: string, data: UpdateSupplierInput): Promise<Supplier> {
+  async updateSupplier(id: string, data: UpdateSupplierPayload): Promise<Supplier> {
     const updated = await supplierRepository.update(id, data);
     if (!updated) {
       throw new SupplierNotFoundError();

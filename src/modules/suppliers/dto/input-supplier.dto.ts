@@ -25,3 +25,6 @@ export const UpdateSupplierInput = z.object({
 
 export type CreateSupplierDto = z.infer<typeof CreateSupplierInput>;
 export type UpdateSupplierDto = z.infer<typeof UpdateSupplierInput>;
+
+export type CreateSupplierPayload = CreateSupplierDto & { createdBy: string };
+export type UpdateSupplierPayload = UpdateSupplierDto & { updatedBy: string };

@@ -39,7 +39,7 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = UpdateSupplierInput.parse(await req.json());
+            const body = CreateSupplierInput.parse(await req.json());
             const supplier = await suppliersService.createSupplier({
                 ...body,
                 createdBy: auth.sub
@@ -55,7 +55,7 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = CreateSupplierInput.parse(await req.json());
+            const body = UpdateSupplierInput.parse(await req.json());
             const updated = await suppliersService.updateSupplier(params.id, {
                 ...body,
                 updatedBy: auth.sub
