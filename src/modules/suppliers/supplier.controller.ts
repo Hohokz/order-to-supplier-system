@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { suppliersService } from './supplier.service';
-import { CreateSupplierInput, UpdateSupplierInput } from './dto/input-supplier.dto';
+import { CreateSupplierDto, UpdateSupplierDto } from './dto/input-supplier.dto';
 import { listSuppliersQuerySchema } from './dto/list-supplier.dto';
 import { requireAuth, requireRole } from '../../lib/auth-guard';
 import { handleError } from '@/lib/error-handler';
@@ -39,7 +39,7 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = await req.json() as CreateSupplierInput;
+            const body = await req.json() as CreateSupplierDto;
             const supplier = await suppliersService.createSupplier({
                 ...body,
                 createdBy: auth.sub
@@ -55,7 +55,7 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = await req.json() as UpdateSupplierInput;
+            const body = await req.json() as UpdateSupplierDto;
             const updated = await suppliersService.updateSupplier(params.id, {
                 ...body,
                 updatedBy: auth.sub
