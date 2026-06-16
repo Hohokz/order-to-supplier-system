@@ -89,7 +89,6 @@ describe('usersService', () => {
       vi.mocked(userRepository.create).mockResolvedValue(createMockUser());
 
       const result = await usersService.createUser({
-        id: 'user-1',
         username: 'testuser',
         password_hash: 'PlainPassword123',
         name: 'Test User',
@@ -113,7 +112,6 @@ describe('usersService', () => {
 
       await expect(
         usersService.createUser({
-          id: 'user-1',
           username: 'testuser',
           password_hash: 'PlainPassword123',
           name: 'Test User',

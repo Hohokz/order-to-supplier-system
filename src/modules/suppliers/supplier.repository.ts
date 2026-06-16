@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
 import { Supplier } from './entities/supplier.entities';
-import { CreateSupplierInput, UpdateSupplierInput } from './dto/input-supplier.dto';
+import { CreateSupplierPayload, UpdateSupplierPayload } from './dto/input-supplier.dto';
 
 export const supplierRepository = {
   async findById(id: string): Promise<Supplier | null> {
@@ -22,18 +22,18 @@ export const supplierRepository = {
     };
   },
 
-  async create(data: CreateSupplierInput): Promise<Supplier> {
+  async create(data: CreateSupplierPayload): Promise<Supplier> {
     const now = new Date();
     const { rows } = await query<Supplier>(
-      `INSERT INTO suppliers (supplier_name, contract_person, phone, email, address, tax_id, status, created_date, created_by, updated_date, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $8, $9)
+      `INSERT INTO suppliers (supplier_name, contract_person, phone, email, address, tax_id, status, created_by, created_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [data.supplier_name, data.contract_person, data.phone, data.email, data.address, data.tax_id, data.status ?? 'ACTIVE', now, data.createdBy]
+      [data.supplier_name, data.contract_person, data.phone, data.email, data.address, data.tax_id, data.status ?? 'ACTIVE', data.createdBy, now]
     );
     return rows[0];
   },
 
-  async update(id: string, data: UpdateSupplierInput): Promise<Supplier | null> {
+  async update(id: string, data: UpdateSupplierPayload): Promise<Supplier | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
