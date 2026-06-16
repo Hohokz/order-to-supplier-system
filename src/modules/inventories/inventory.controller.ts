@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { suppliersService } from './supplier.service';
-import { CreateSupplierInput, UpdateSupplierInput } from './dto/input-supplier.dto';
-import { SearchSupplierInput } from './dto/list-supplier.dto';
+import { inventoriesService } from './inventory.service';
+import { CreateInventoryInput, UpdateInventoryInput } from './dto/input-inventory.dto';
+import { SearchInventoryInput } from './dto/list-inventory.dto';
 import { requireAuth, requireRole } from '../../lib/auth-guard';
 import { handleError } from '@/lib/error-handler';
 
-export const suppliersController = {
+export const inventoriesController = {
     async list(req: NextRequest) {
         try {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = await req.json().catch(() => ({}));
-            const { page, limit, filters } = SearchSupplierInput.parse(body);
+            const body = SearchInventoryInput.parse(await req.json());
+            const { page, limit, filters } = body;
 
-            const result = await suppliersService.listSuppliers(page, limit, filters);
+            // เรียกใช้ Service ที่ส่ง filters เข้าไป
+            const result = await inventoriesService.listInventories(page, limit, filters);
             return NextResponse.json(result);
         } catch (err) {
             return handleError(err);
@@ -24,8 +25,8 @@ export const suppliersController = {
     async getById(req: NextRequest, params: { id: string }) {
         try {
             requireAuth(req);
-            const supplier = await suppliersService.getSupplier(params.id);
-            return NextResponse.json(supplier);
+            const inventory = await inventoriesService.getInventory(params.id);
+            return NextResponse.json(inventory);
         } catch (err) {
             return handleError(err);
         }
@@ -36,12 +37,12 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = CreateSupplierInput.parse(await req.json());
-            const supplier = await suppliersService.createSupplier({
+            const body = CreateInventoryInput.parse(await req.json());
+            const inventory = await inventoriesService.createInventory({
                 ...body,
                 createdBy: auth.sub
             });
-            return NextResponse.json(supplier, { status: 201 });
+            return NextResponse.json(inventory, { status: 201 });
         } catch (err) {
             return handleError(err);
         }
@@ -52,8 +53,8 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            const body = UpdateSupplierInput.parse(await req.json());
-            const updated = await suppliersService.updateSupplier(params.id, {
+            const body = UpdateInventoryInput.parse(await req.json());
+            const updated = await inventoriesService.updateInventory(params.id, {
                 ...body,
                 updatedBy: auth.sub
             });
@@ -68,7 +69,7 @@ export const suppliersController = {
             const auth = requireAuth(req);
             requireRole(auth, 'APPROVER');
 
-            await suppliersService.deleteSupplier(params.id);
+            await inventoriesService.deleteInventory(params.id);
             return NextResponse.json({ success: true });
         } catch (err) {
             return handleError(err);

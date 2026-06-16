@@ -26,6 +26,15 @@ export const unitRepository = {
     };
   },
 
+  async existById(id: string): Promise<boolean> {
+    const { rows } = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM units WHERE id = $1`,
+      [id]
+    );
+    const count = parseInt(rows[0]?.count ?? '0', 10);
+    return count > 0;
+  },
+
   async create(data: CreateUnitPayload): Promise<Units> {
     const now = new Date();
     const { rows } = await query<Units>(

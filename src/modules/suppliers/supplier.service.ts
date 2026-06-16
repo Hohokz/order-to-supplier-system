@@ -2,6 +2,8 @@ import { supplierRepository } from './supplier.repository';
 import { Supplier } from './entities/supplier.entities';
 import { CreateSupplierPayload, UpdateSupplierPayload } from './dto/input-supplier.dto';
 import { SupplierNotFoundError } from './supplier.error';
+import { inventoryRepository } from '../inventories/inventory.repository';
+import { InventoryUsingSupplier } from '../inventories/inventory.error';
 
 export const suppliersService = {
   async getSupplier(id: string): Promise<Supplier> {
@@ -12,8 +14,8 @@ export const suppliersService = {
     return supplier;
   },
 
-  async listSuppliers(page: number, limit: number) {
-    const { data, total } = await supplierRepository.findAll(page, limit);
+  async listSuppliers(page: number, limit: number, filters?: { supplierName?: string }) {
+    const { data, total } = await supplierRepository.findAll(page, limit, filters);
     return {
       data,
       total,
@@ -36,9 +38,14 @@ export const suppliersService = {
   },
 
   async deleteSupplier(id: string): Promise<void> {
-    const deleted = await supplierRepository.delete(id);
-    if (!deleted) {
-      throw new SupplierNotFoundError();
+    const existWithSupplier = inventoryRepository.existWithSupplier(id);
+    if (!existWithSupplier) {
+      const deleted = await supplierRepository.delete(id);
+      if (!deleted) {
+        throw new SupplierNotFoundError();
+      }
+    } else {
+      throw new InventoryUsingSupplier;
     }
   },
 };

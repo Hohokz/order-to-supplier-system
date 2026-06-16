@@ -219,6 +219,79 @@
         }
       }
     },
+    "/api/inventories": {
+      "get": {
+        "summary": "ดึงข้อมูลคลังสินค้าทั้งหมด",
+        "tags": [
+          "Inventories"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "post": {
+        "summary": "เพิ่มสินค้าเข้าคลัง (เฉพาะ APPROVER)",
+        "tags": [
+          "Inventories"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/inventories/{id}": {
+      "get": {
+        "summary": "ดึงข้อมูลสินค้าตาม ID",
+        "tags": [
+          "Inventories"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "put": {
+        "summary": "อัปเดตข้อมูลสินค้า (เฉพาะ APPROVER)",
+        "tags": [
+          "Inventories"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      },
+      "delete": {
+        "summary": "ลบสินค้าออกจากคลัง (เฉพาะ APPROVER)",
+        "tags": [
+          "Inventories"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
     "/api/auth/refresh": {
       "post": {
         "summary": "Refresh access token",

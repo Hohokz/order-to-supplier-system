@@ -15,6 +15,7 @@ import {
 } from '@/modules/users/user.error';
 import { ForbiddenError, UnauthorizedError } from './auth-guard';
 import { UnitNotFoundError } from '@/modules/units/unit.error';
+import { InventoryNotFoundError, InventoryUsingSupplier, InventoryUsingUnit } from '@/modules/inventories/inventory.error';
 
 // นำเข้าฟังก์ชันจัดรูปแบบ Zod Error ของคุณ
 export interface FormattedZodIssue {
@@ -84,11 +85,23 @@ export function handleError(err: unknown) {
     if (err instanceof CannotDeleteSupplierError) {
         return NextResponse.json({ error: err.message }, { status: 409 });
     }
+    if (err instanceof InventoryUsingSupplier){
+        return NextResponse.json({error: err.message}, {status:500})
+    }
 
     //4. จัดการ Unit Domain Error
     if(err instanceof UnitNotFoundError){
-        return NextResponse.json({error: err.message}, {status:404})
+        return NextResponse.json({error: err.message}, {status:404});
     }
+    if(err instanceof InventoryUsingUnit){
+        return NextResponse.json({error: err.message}, {status:500})
+    }
+
+    //5. จัดการ Inventory Domain Error
+    if(err instanceof InventoryNotFoundError){
+        return NextResponse.json({error: err.message}, {status:404});
+    }
+    
 
     // 3. จัดการ Error อื่นๆ (Fallback)
     console.error('Unhandled error:', err);

@@ -8,18 +8,52 @@ export const supplierRepository = {
     return rows[0] ?? null;
   },
 
-  async findAll(page: number, limit: number): Promise<{ data: Supplier[]; total: number }> {
+  async findAll(page: number, limit: number, filters?: { supplierName?: string }) {
     const offset = (page - 1) * limit;
+    const filterClauses: string[] = [];
+    const filterParams: (string | number)[] = [];
 
+    // สร้างเงื่อนไขการค้นหาตามชื่อ Supplier
+    if (filters?.supplierName) {
+      filterClauses.push(`supplier_name LIKE $${filterParams.length + 1}`);
+      filterParams.push(`${filters.supplierName}%`);
+    }
+
+    const whereSql = filterClauses.length > 0 ? `WHERE ${filterClauses.join(' AND ')}` : '';
+
+    // SQL สำหรับดึงข้อมูล
+    const dataSql = `
+    SELECT * FROM suppliers 
+    ${whereSql} 
+    ORDER BY supplier_name ASC 
+    LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}
+  `;
+
+    // รวม parameters สำหรับ dataSql: [filterParams..., limit, offset]
+    const dataParams = [...filterParams, limit, offset];
+
+    // SQL สำหรับนับจำนวน
+    const countSql = `SELECT COUNT(*) as count FROM suppliers ${whereSql}`;
+
+    // รัน Query พร้อมกัน
     const [dataResult, countResult] = await Promise.all([
-      query<Supplier>(`SELECT * FROM suppliers ORDER BY created_date DESC LIMIT $1 OFFSET $2`, [limit, offset]),
-      query<{ count: string }>(`SELECT COUNT(*) FROM suppliers`),
+      query<Supplier>(dataSql, dataParams),
+      query<{ count: string }>(countSql, filterParams)
     ]);
 
     return {
       data: dataResult.rows,
       total: Number(countResult.rows[0]?.count ?? 0),
     };
+  },
+
+  async existById(id: string): Promise<boolean> {
+    const { rows } = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM suppliers WHERE id = $1`,
+      [id]
+    );
+    const count = parseInt(rows[0]?.count ?? '0', 10);
+    return count > 0;
   },
 
   async create(data: CreateSupplierPayload): Promise<Supplier> {

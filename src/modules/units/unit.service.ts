@@ -2,6 +2,8 @@ import { unitRepository } from './unit.repository';
 import type { Units } from './entities/unit.entities';
 import type { CreateUnitPayload, UpdateUnitPayload } from './dto/input-unit.dto';
 import { UnitNotFoundError } from './unit.error';
+import { inventoryRepository } from '../inventories/inventory.repository';
+import { InventoryUsingUnit } from '../inventories/inventory.error';
 
 export const unitsService = {
   async getUnit(id: string): Promise<Units> {
@@ -36,9 +38,14 @@ export const unitsService = {
   },
 
   async deleteUnit(id: string): Promise<void> {
-    const deleted = await unitRepository.delete(id);
-    if (!deleted) {
-      throw new UnitNotFoundError();
+    const existInventory = inventoryRepository.existWithUnit(id);
+    if (!existInventory) {
+      const deleted = await unitRepository.delete(id);
+      if (!deleted) {
+        throw new UnitNotFoundError();
+      }
+    } else {
+      throw new InventoryUsingUnit;
     }
   },
 };

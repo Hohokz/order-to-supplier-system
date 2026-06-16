@@ -7,6 +7,10 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.ts'],
+    env: {
+      DATABASE_URL: 'postgres://dummy:dummy@localhost:5432/dummy',
+      NODE_ENV: 'test',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
