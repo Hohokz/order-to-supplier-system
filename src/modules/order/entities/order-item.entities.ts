@@ -5,4 +5,5 @@ export interface OrderItem extends QueryResultRow {
     inventory_id: string;
     order_id: number;
     quantity: number;
+    order_quantity: number;
 }

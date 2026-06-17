@@ -15,7 +15,8 @@ import {
 } from '@/modules/users/user.error';
 import { ForbiddenError, UnauthorizedError } from './auth-guard';
 import { UnitNotFoundError } from '@/modules/units/unit.error';
-import { InventoryNotFoundError, InventoryUsingSupplier, InventoryUsingUnit } from '@/modules/inventories/inventory.error';
+import { InventoryNameAlreadyExist, InventoryNotFoundError, InventoryUsingSupplier, InventoryUsingUnit } from '@/modules/inventories/inventory.error';
+import { OrderNotFoundError, OrderSignatureIsEmpty } from '@/modules/order/order.error';
 
 // นำเข้าฟังก์ชันจัดรูปแบบ Zod Error ของคุณ
 export interface FormattedZodIssue {
@@ -100,6 +101,17 @@ export function handleError(err: unknown) {
     //5. จัดการ Inventory Domain Error
     if(err instanceof InventoryNotFoundError){
         return NextResponse.json({error: err.message}, {status:404});
+    }
+    if(err instanceof InventoryNameAlreadyExist){
+        return NextResponse.json({error: err.message}, {status:500})
+    }
+
+    //6. จัดการ Order Domain Error
+    if(err instanceof OrderNotFoundError){
+        return NextResponse.json({error: err.message}, {status: 404})
+    }
+    if(err instanceof OrderSignatureIsEmpty){
+        return NextResponse.json({error: err.message}, {status: 404})
     }
     
 

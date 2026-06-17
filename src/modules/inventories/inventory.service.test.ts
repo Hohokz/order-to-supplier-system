@@ -27,7 +27,6 @@ function createMockInventory(overrides: Partial<Inventory> = {}): Inventory {
         status: 'ACTIVE',
         supplier_id: 'sup-1',
         unit_id: 'kg-1',
-        delivery_when: '2026-06-20T10:00:00.000Z',
         created_by: 'admin-1',
         updated_by: 'admin-1',
         created_date: now,
@@ -95,7 +94,6 @@ describe('inventoriesService', () => {
                 status: 'ACTIVE' as const,
                 supplier_id: 'sup-1',
                 unit_id: 'kg-1',
-                delivery_when: '2026-06-25T10:00:00.000Z',
                 createdBy: 'admin-1',
             };
 

@@ -15,7 +15,6 @@ export interface Inventory extends QueryResultRow {
     updated_by: string;
     supplier_id: string;
     unit_id: string;
-    delivery_when: string;
 
     supplier: { id: string; supplier_name: string };
     unit: { id: string; unit_name: string };

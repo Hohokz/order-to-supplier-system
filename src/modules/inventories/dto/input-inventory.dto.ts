@@ -9,11 +9,7 @@ export const CreateInventoryInput = z.object({
   unit_price: z.number().min(0, 'ราคาต่อหน่วยต้องไม่ติดลบ'),
   status: z.enum(INVENTORY_STATUS).optional().default('ACTIVE'),
   supplier_id: z.string().uuid('รูปแบบ Supplier ID ไม่ถูกต้อง'),
-  unit_id: z.string(),
-  delivery_when: z.string().min(1, 'กรุณาระบุเวลาจัดส่ง').openapi({
-    example: '2026-06-20T10:00:00.000Z',
-    description: 'วันที่และเวลาที่จะจัดส่ง'
-  }),
+  unit_id: z.string()
 });
 
 export const UpdateInventoryInput = CreateInventoryInput.partial();

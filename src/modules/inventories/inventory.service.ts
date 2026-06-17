@@ -3,7 +3,7 @@ import { supplierRepository } from '../suppliers/supplier.repository';
 import { unitRepository } from '../units/unit.repository';
 import type { Inventory } from './entities/inventory.entities';
 import type { CreateInventoryPayload, UpdateInventoryPayload } from './dto/input-inventory.dto';
-import { InventoryNotFoundError } from './inventory.error';
+import { InventoryNameAlreadyExist, InventoryNotFoundError } from './inventory.error';
 import { SupplierNotFoundError } from '../suppliers/supplier.error';
 import { UnitNotFoundError } from '../units/unit.error';
 
@@ -32,13 +32,17 @@ export const inventoriesService = {
   },
 
   async createInventory(data: CreateInventoryPayload): Promise<Inventory> {
-    const existSupplier = supplierRepository.existById(data.supplier_id);
-    if (!existSupplier) {
-      throw SupplierNotFoundError;
+    const existInventoryName = await inventoryRepository.existWithInventoryName(data.inventory_name);
+    if(existInventoryName){
+      throw new InventoryNameAlreadyExist;
     }
-    const existUnit = unitRepository.existById(data.unit_id);
+    const existSupplier = await supplierRepository.existById(data.supplier_id);
+    if (!existSupplier) {
+      throw new SupplierNotFoundError;
+    }
+    const existUnit = await unitRepository.existById(data.unit_id);
     if (!existUnit) {
-      throw UnitNotFoundError;
+      throw new UnitNotFoundError;
     }
     return await inventoryRepository.create(data);
   },

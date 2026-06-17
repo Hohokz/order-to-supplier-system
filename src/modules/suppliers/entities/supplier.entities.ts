@@ -16,4 +16,5 @@ export interface Supplier extends QueryResultRow {
     created_by: string;
     updated_date: Date;
     updated_by: string;
+    delivery_when: string;
 }

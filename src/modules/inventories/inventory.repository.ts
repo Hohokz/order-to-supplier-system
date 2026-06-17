@@ -88,15 +88,24 @@ export const inventoryRepository = {
     return count > 0;
   },
 
+  async existWithInventoryName(name: string){
+    const { rows } = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM inventories WHERE inventory_name = $1`,
+      [name]
+    );
+    const count = parseInt(rows[0]?.count ?? '0', 10);
+    return count > 0;
+  },
+
   async create(data: CreateInventoryPayload): Promise<Inventory> {
     const now = new Date();
     const sql = `
     WITH inserted AS (
       INSERT INTO inventories (
         inventory_name, inventory_quantity, unit_price, status, 
-        supplier_id, unit_id, delivery_when, created_by, created_date
+        supplier_id, unit_id, created_by, created_date
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     )
     SELECT i.*, 
@@ -114,7 +123,6 @@ export const inventoryRepository = {
       data.status ?? 'ACTIVE',
       data.supplier_id,
       data.unit_id,
-      data.delivery_when,
       data.createdBy,
       now
     ]);
@@ -134,7 +142,6 @@ export const inventoryRepository = {
       status: 'status',
       supplier_id: 'supplier_id',
       unit_id: 'unit_id',
-      delivery_when: 'delivery_when',
       updatedBy: 'updated_by'
     };
 

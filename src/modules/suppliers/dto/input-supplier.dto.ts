@@ -11,6 +11,7 @@ export const CreateSupplierInput = z.object({
   address: z.string().max(255),
   tax_id: z.string().max(20),
   status: z.enum(['ACTIVE', 'CHANGED', 'INACTIVE']), // ใส่ default ใน DB ได้
+  delivery_when: z.string().min(1).max(20)
 });
 
 export const UpdateSupplierInput = z.object({
@@ -21,6 +22,7 @@ export const UpdateSupplierInput = z.object({
   address: z.string().max(255),
   tax_id: z.string().max(20),
   status: z.enum(['ACTIVE', 'CHANGED', 'INACTIVE']),
+  delivery_when: z.string().min(1).max(20)
 });
 
 export type CreateSupplierDto = z.infer<typeof CreateSupplierInput>;

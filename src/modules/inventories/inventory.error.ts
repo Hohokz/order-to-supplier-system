@@ -5,6 +5,13 @@ export class InventoryNotFoundError extends Error {
   }
 }
 
+export class InventoryNameAlreadyExist extends Error{
+  constructor(message = 'Inventory name is already exist'){
+    super(message);
+    this.name = 'InventoryNameExist';
+  }
+}
+
 export class InventoryUsingUnit extends Error {
   constructor(message = 'It is inventory still using unit') {
     super(message);
