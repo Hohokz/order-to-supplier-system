@@ -5,15 +5,15 @@ import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '../dashboard/_components/Sidebar';
-import { MasterInventoryResponse, MasterInventoryRow } from '../../types/inventory'
+import { MasterInventoryRow, MasterInventoryResponse } from '@/types/inventory';
 
 export default function OrderPage() {
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const router = useRouter();
 
   type FormItemType = MasterInventoryRow & {
-    quantity: number;
-    order_quantity: number;
+    quantity: number | string;
+    order_quantity: number | string;
   };
 
   // สเตตหลักสำหรับจัดการฟอร์มสั่งซื้อ
@@ -54,7 +54,6 @@ export default function OrderPage() {
 
       } catch (err: unknown) {
         console.error(err);
-        setItems(mockMasterItems);
       } finally {
         setIsLoading(false);
       }
@@ -121,7 +120,12 @@ export default function OrderPage() {
       return;
     }
 
-    const filteredItems = items.filter((item) => item.order_quantity > 0);
+    const filteredItems = items.filter((item) => {
+      // แปลงค่าให้เป็นตัวเลขที่ปลอดภัยก่อนตรวจสอบเงื่อนไข
+      const orderNum = Number(item.order_quantity);
+      return !isNaN(orderNum) && orderNum > 0;
+    });
+
     if (filteredItems.length === 0) {
       setMessage({ type: 'error', text: 'กรุณากรอกจำนวนที่ต้องการสั่งเพิ่มอย่างน้อย 1 รายการ' });
       return;
@@ -322,49 +326,3 @@ export default function OrderPage() {
     </div>
   );
 }
-
-// 💡 เปลี่ยนชุดข้อมูลจำลองด้านล่างสุดให้ตรงตามสเปกใหม่ของ State
-const mockMasterItems: (MasterInventoryRow & { quantity: number; order_quantity: number })[] = [
-  {
-    id: "58b22995-ee3c-4537-a194-b392bfaee481",
-    inventory_name: "วัตถุดิบ A",
-    supplier: {
-      id: "5f451436-556a-4bd2-b55b-a400a994b447",
-      supplier_name: "บริษัท เอ จำกัด"
-    },
-    unit: {
-      id: "KG",
-      unit_name: "กิโลกรัม"
-    },
-    quantity: 0,
-    order_quantity: 0
-  },
-  {
-    id: "4e44638d-c789-4dae-8c9f-25023af656f5",
-    inventory_name: "วัตถุดิบ B",
-    supplier: {
-      id: "5f451436-556a-4bd2-b55b-a400a994b447",
-      supplier_name: "บริษัท เอ จำกัด"
-    },
-    unit: {
-      id: "BOX",
-      unit_name: "กล่อง"
-    },
-    quantity: 0,
-    order_quantity: 0
-  },
-  {
-    id: "99b22995-ee3c-4537-a194-b392bfaee111",
-    inventory_name: "เหล็กเส้น 12mm",
-    supplier: {
-      id: "a307970d-4aa1-4b18-ba78-38f1275a16ed",
-      supplier_name: "บริษัท ซี จำกัด"
-    },
-    unit: {
-      id: "PCS",
-      unit_name: "เส้น"
-    },
-    quantity: 0,
-    order_quantity: 0
-  }
-];
