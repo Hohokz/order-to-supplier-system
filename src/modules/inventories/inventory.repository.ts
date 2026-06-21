@@ -19,7 +19,7 @@ export const inventoryRepository = {
     return rows[0] ?? null;
   },
 
-  async findAll(page: number, limit: number, filters?: { inventoryName?: string; supplierName?: string }) {
+  async findAll(page: number, limit: number, filters?: { inventoryName?: string; supplierName?: string; status?: string }) {
     const offset = (page - 1) * limit;
     const filterClauses: string[] = [];
     const filterParams: (string | number)[] = [];
@@ -33,6 +33,11 @@ export const inventoryRepository = {
     if (filters?.supplierName) {
       filterClauses.push(`s.supplier_name LIKE $${filterParams.length + 1}`);
       filterParams.push(`${filters.supplierName}%`);
+    }
+
+    if (filters?.status) {
+      filterClauses.push(`i.status = $${filterParams.length + 1}`);
+      filterParams.push(`${filters.status}`);
     }
 
     const whereSql = filterClauses.length > 0 ? `WHERE ${filterClauses.join(' AND ')}` : '';
@@ -70,7 +75,22 @@ export const inventoryRepository = {
     };
   },
 
-  async existWithUnit(id: string){
+  async masterInventories() {
+    const sql = `SELECT i.*, 
+           json_build_object('id', s.id, 'supplier_name', s.supplier_name) as supplier,
+           json_build_object('id', u.id, 'unit_name', u.unit_name) as unit
+    FROM inventories i
+    LEFT JOIN suppliers s ON i.supplier_id = s.id
+    LEFT JOIN units u ON i.unit_id = u.id
+    where i.status = 'ACTIVE';`
+
+    const dataResult = await Promise.all([
+      query<Inventory>(sql)
+    ]);
+    return dataResult;
+  },
+
+  async existWithUnit(id: string) {
     const { rows } = await query<{ count: string }>(
       `SELECT COUNT(*) as count FROM inventories WHERE unit_id = $1`,
       [id]
@@ -79,7 +99,7 @@ export const inventoryRepository = {
     return count > 0;
   },
 
-  async existWithSupplier(id: string){
+  async existWithSupplier(id: string) {
     const { rows } = await query<{ count: string }>(
       `SELECT COUNT(*) as count FROM inventories WHERE supplier_id = $1`,
       [id]
@@ -88,7 +108,7 @@ export const inventoryRepository = {
     return count > 0;
   },
 
-  async existWithInventoryName(name: string){
+  async existWithInventoryName(name: string) {
     const { rows } = await query<{ count: string }>(
       `SELECT COUNT(*) as count FROM inventories WHERE inventory_name = $1`,
       [name]

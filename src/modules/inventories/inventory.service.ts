@@ -19,7 +19,7 @@ export const inventoriesService = {
   async listInventories(
     page: number,
     limit: number,
-    filters?: { inventoryName?: string; supplierName?: string }
+    filters?: { inventoryName?: string; supplierName?: string, status?: string }
   ) {
     const { data, total } = await inventoryRepository.findAll(page, limit, filters);
     return {
@@ -31,9 +31,13 @@ export const inventoriesService = {
     };
   },
 
+  async GetMasterInventories() {
+    return await inventoryRepository.masterInventories();
+  },
+
   async createInventory(data: CreateInventoryPayload): Promise<Inventory> {
     const existInventoryName = await inventoryRepository.existWithInventoryName(data.inventory_name);
-    if(existInventoryName){
+    if (existInventoryName) {
       throw new InventoryNameAlreadyExist;
     }
     const existSupplier = await supplierRepository.existById(data.supplier_id);

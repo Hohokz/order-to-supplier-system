@@ -6,6 +6,7 @@ export const SearchInventoryInput = z.object({
   filters: z.object({
     inventoryName: z.string().optional(),
     supplierName: z.string().optional(),
+    status: z.string().optional()
   }).optional(),
 });
 

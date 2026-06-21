@@ -22,6 +22,18 @@ export const inventoriesController = {
         }
     },
 
+    async master(req: NextRequest) {
+        try {
+            const auth = requireAuth(req);
+            requireRole(auth, 'APPROVER', 'OBSERVER');
+
+            const result = await inventoriesService.GetMasterInventories();
+            return NextResponse.json(result);
+        } catch (err) {
+            return handleError(err);
+        }
+    },
+
     async getById(req: NextRequest, params: { id: string }) {
         try {
             requireAuth(req);
