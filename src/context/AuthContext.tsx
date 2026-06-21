@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export interface User {
   id: string;
   username: string;
-  user_role: 'APPROVE' | 'OBSERVER';
+  user_role: 'APPROVER' | 'OBSERVER';
 }
 
 interface AuthContextType {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
 
-    if (userData.user_role === 'APPROVE') {
+    if (userData.user_role === 'APPROVER') {
       router.push('/dashboard');
     } else if (userData.user_role === 'OBSERVER') {
       router.push('/order');

@@ -15,9 +15,9 @@ export default function HomePage() {
     if (!isAuthenticated) {
       router.push('/login');
     } else {
-      if (user?.role === 'APPROVE') {
+      if (user?.user_role === 'APPROVER') {
         router.push('/dashboard');
-      } else if (user?.role === 'OBSERVER') {
+      } else if (user?.user_role === 'OBSERVER') {
         router.push('/order');
       } else {
         router.push('/dashboard');

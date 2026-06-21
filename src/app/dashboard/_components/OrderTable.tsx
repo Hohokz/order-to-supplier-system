@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { OrderWithItems } from '../page';
+import { OrderWithItems } from '@/types/order';
 
 interface OrderTableProps {
   orders: OrderWithItems[];
@@ -39,13 +39,17 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
           </thead>
           <tbody className="divide-y divide-zinc-100 text-sm">
             {orders.map((order) => (
-              <tr 
+              <tr
                 key={order.id}
                 onClick={() => onOrderClick(order)}
                 className="hover:bg-zinc-50 cursor-pointer active:bg-zinc-100 transition-colors duration-150"
               >
                 <td className="p-4 md:p-5 whitespace-nowrap font-medium">
-                  {new Date(order.order_date).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  {new Date(order.order_date || order.created_date).toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
                 </td>
                 <td className="p-4 md:p-5 font-mono">
                   <span className="text-zinc-400 text-xs mr-1">#{order.id}</span>
@@ -53,11 +57,10 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
                 </td>
                 <td className="p-4 md:p-5 text-zinc-600 font-medium">{order.created_by}</td>
                 <td className="p-4 md:p-5 text-right">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                    order.is_approve 
-                      ? 'bg-zinc-900 text-white border-black' 
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${order.is_approve
+                      ? 'bg-zinc-900 text-white border-black'
                       : 'bg-white text-zinc-500 border-zinc-200'
-                  }`}>
+                    }`}>
                     {order.is_approve ? 'อนุมัติแล้ว' : 'รอตรวจสอบ'}
                   </span>
                 </td>

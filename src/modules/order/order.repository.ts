@@ -1,6 +1,7 @@
 import { pool, query } from '@/lib/db';
 import type { Order, OrderWithItems } from './entities/order.entities';
 import type { CreateOrderPayload } from './dto/input-order';
+import type { ListSuppliersQueryDto } from '../suppliers/dto/list-supplier.dto';
 
 export const orderRepository = {
     async findAll(page: number, limit: number, filters?: { orderDate?: string; approvedBy?: string; signature?: string }) {
@@ -29,7 +30,11 @@ export const orderRepository = {
                         json_agg(
                             json_build_object(
                             'id', oi.id, 
-                            'inventory_id', oi.inventory_id, 
+                            'inventory_name', inv.inventory_name,
+                            'supplier_name', s.supplier_name,
+                            'delivery_when', s.delivery_when,
+                            'unit', u.id,
+                            'unit_name', u.unit_name,
                             'quantity', oi.quantity, 
                             'order_quantity', oi.order_quantity
                             )
@@ -37,6 +42,9 @@ export const orderRepository = {
                         ) as items
                 FROM orders o
                 LEFT JOIN order_items oi ON o.id = oi.order_id
+                LEFT JOIN inventories inv ON oi.inventory_id = inv.id
+                LEFT JOIN suppliers s on inv.supplier_id = s.id 
+                LEFT JOIN units u on inv.unit_id  = u.id
                 ${whereSql}
                 GROUP BY o.id
                 ORDER BY o.created_date DESC 
@@ -46,9 +54,11 @@ export const orderRepository = {
         const countSql = `SELECT COUNT(*) as count FROM orders ${whereSql}`;
 
         const [dataResult, countResult] = await Promise.all([
-            query<Order>(dataSql, [...filterParams, limit, offset]),
+            query<ListSuppliersQueryDto>(dataSql, [...filterParams, limit, offset]),
             query<{ count: string }>(countSql, filterParams)
         ]);
+
+        
 
         return { data: dataResult.rows, total: Number(countResult.rows[0]?.count ?? 0) };
     },
