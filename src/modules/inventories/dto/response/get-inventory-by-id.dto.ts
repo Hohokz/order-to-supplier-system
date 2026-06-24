@@ -21,7 +21,8 @@ export const GetInventoryByIdResponse = z.object({
   inventory_quantity: z.number(),
   unit_price: z.number(),
   status: z.enum(INVENTORY_STATUS),
-  supplier: SupplierSchema, 
+  supplier: SupplierSchema,
   unit: UnitSchema,
   created_date: z.date(),
+  safety_quantity: z.number(),
 });

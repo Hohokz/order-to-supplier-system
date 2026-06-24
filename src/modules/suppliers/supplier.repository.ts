@@ -59,10 +59,10 @@ export const supplierRepository = {
   async create(data: CreateSupplierPayload): Promise<Supplier> {
     const now = new Date();
     const { rows } = await query<Supplier>(
-      `INSERT INTO suppliers (supplier_name, contract_person, phone, email, address, tax_id, status, created_by, created_date, delivery_when)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO suppliers (supplier_name, contract_person, phone, email, address, tax_id, status, created_by, created_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [data.supplier_name, data.contract_person, data.phone, data.email, data.address, data.tax_id, data.status ?? 'ACTIVE', data.createdBy, now, data.delivery_when]
+      [data.supplier_name, data.contract_person, data.phone, data.email, data.address, data.tax_id, data.status ?? 'ACTIVE', data.createdBy, now]
     );
     return rows[0];
   },

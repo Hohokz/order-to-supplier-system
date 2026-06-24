@@ -123,9 +123,9 @@ export const inventoryRepository = {
     WITH inserted AS (
       INSERT INTO inventories (
         inventory_name, inventory_quantity, unit_price, status, 
-        supplier_id, unit_id, created_by, created_date
+        supplier_id, unit_id, created_by, created_date, safety_quantity
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     )
     SELECT i.*, 
@@ -144,7 +144,8 @@ export const inventoryRepository = {
       data.supplier_id,
       data.unit_id,
       data.createdBy,
-      now
+      now,
+      data.safety_quantity
     ]);
 
     return rows[0];
@@ -162,6 +163,7 @@ export const inventoryRepository = {
       status: 'status',
       supplier_id: 'supplier_id',
       unit_id: 'unit_id',
+      safety_quantity: 'safety_quantity',
       updatedBy: 'updated_by'
     };
 

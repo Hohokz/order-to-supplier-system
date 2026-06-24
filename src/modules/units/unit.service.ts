@@ -38,7 +38,7 @@ export const unitsService = {
   },
 
   async deleteUnit(id: string): Promise<void> {
-    const existInventory = inventoryRepository.existWithUnit(id);
+    const existInventory = await inventoryRepository.existWithUnit(id);
     if (!existInventory) {
       const deleted = await unitRepository.delete(id);
       if (!deleted) {

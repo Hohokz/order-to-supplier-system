@@ -40,22 +40,23 @@ export const usersService = {
   },
 
   async createUser(data: CreateProfileDto): Promise<SafeUser> {
-  const existing = await userRepository.findByUsername(data.username);
-  if (existing) {
-    throw new UsernameAlreadyExistsError();
-  }
+    const existing = await userRepository.findByUsername(data.username);
+    if (existing) {
+      throw new UsernameAlreadyExistsError();
+    }
 
-  const passwordHash = await bcrypt.hash(data.password_hash, SALT_ROUNDS);
-  const user = await userRepository.create({
-    username: data.username,
-    passwordHash,
-    name: data.name,
-    lineId: data.line_id,
-    userRole: data.user_role
-  });
+    const passwordHash = await bcrypt.hash(data.password_hash, SALT_ROUNDS);
+    const user = await userRepository.create({
+      username: data.username,
+      passwordHash,
+      name: data.name,
+      lineId: data.line_id,
+      userRole: data.user_role,
+      companyName: data.company_name
+    });
 
-  return toSafeUser(user);
-},
+    return toSafeUser(user);
+  },
 
   async updateProfile(userId: string, data: UpdateProfileDto): Promise<SafeUser> {
     if (data.username) {

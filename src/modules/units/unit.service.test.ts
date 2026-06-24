@@ -3,6 +3,7 @@ import { unitsService } from './unit.service';
 import { unitRepository } from './unit.repository';
 import { UnitNotFoundError } from './unit.error';
 import type { Units } from './entities/unit.entities';
+import { inventoryRepository } from '../inventories/inventory.repository';
 
 // 1. Mock Repository
 vi.mock('./unit.repository', () => ({
@@ -12,6 +13,12 @@ vi.mock('./unit.repository', () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+  },
+}));
+
+vi.mock('../inventories/inventory.repository', () => ({
+  inventoryRepository: {
+    existWithUnit: vi.fn(),
   },
 }));
 
@@ -32,6 +39,7 @@ describe('unitsService', () => {
   // เคลียร์ Mock ทุกครั้งก่อนเริ่มรันแต่ละ Test Case
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(inventoryRepository.existWithUnit).mockResolvedValue(false);
   });
 
   describe('getUnit', () => {

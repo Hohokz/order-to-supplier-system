@@ -8,15 +8,15 @@ export const dynamic = 'force-dynamic';
 type Params = { id: string };
 
 export async function GET(
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: Promise<Params> }
 ): Promise<NextResponse> {
   const resolvedParams = await params;
   return suppliersController.getById(req, resolvedParams);
 }
 
-export async function PUT(
-  req: NextRequest, 
+export async function PATCH(
+  req: NextRequest,
   { params }: { params: Promise<Params> }
 ): Promise<NextResponse> {
   const resolvedParams = await params;
@@ -24,7 +24,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  req: NextRequest, 
+  req: NextRequest,
   { params }: { params: Promise<Params> }
 ): Promise<NextResponse> {
   const resolvedParams = await params;

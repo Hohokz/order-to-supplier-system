@@ -61,7 +61,10 @@ export const apiClient = {
       const errorData = Array.isArray(data) ? data[0] : data;
 
       // 2. ดึงข้อความข้อผิดพลาดออกมาอย่างปลอดภัย
-      const errorMessage = (errorData as { message?: string })?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อระบบ';
+      const errorMessage = 
+        (errorData as { error?: string })?.error || 
+        (errorData as { message?: string })?.message || 
+        'เกิดข้อผิดพลาดในการเชื่อมต่อระบบ';
 
       throw new Error(errorMessage);
     }

@@ -38,7 +38,7 @@ export const suppliersService = {
   },
 
   async deleteSupplier(id: string): Promise<void> {
-    const existWithSupplier = inventoryRepository.existWithSupplier(id);
+    const existWithSupplier = await inventoryRepository.existWithSupplier(id);
     if (!existWithSupplier) {
       const deleted = await supplierRepository.delete(id);
       if (!deleted) {

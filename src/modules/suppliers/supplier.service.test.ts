@@ -3,6 +3,7 @@ import { suppliersService } from './supplier.service';
 import { supplierRepository } from './supplier.repository';
 import { SupplierNotFoundError } from './supplier.error';
 import type { Supplier } from './entities/supplier.entities';
+import { inventoryRepository } from '../inventories/inventory.repository';
 
 // 1. Mock Repository
 vi.mock('./supplier.repository', () => ({
@@ -12,6 +13,12 @@ vi.mock('./supplier.repository', () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+  },
+}));
+
+vi.mock('../inventories/inventory.repository', () => ({
+  inventoryRepository: {
+    existWithSupplier: vi.fn(),
   },
 }));
 
@@ -40,6 +47,7 @@ describe('suppliersService', () => {
   // เคลียร์ Mock ทุกครั้งก่อนเริ่มรันแต่ละ Test Case
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(inventoryRepository.existWithSupplier).mockResolvedValue(false);
   });
 
   describe('getSupplier', () => {
@@ -75,7 +83,7 @@ describe('suppliersService', () => {
 
       const result = await suppliersService.listSuppliers(1, 10);
 
-      expect(supplierRepository.findAll).toHaveBeenCalledWith(1, 10);
+      expect(supplierRepository.findAll).toHaveBeenCalledWith(1, 10, undefined);
       expect(result.data).toHaveLength(2);
       expect(result.total).toBe(15);
       expect(result.page).toBe(1);

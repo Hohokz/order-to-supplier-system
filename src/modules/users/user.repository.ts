@@ -1,25 +1,9 @@
 import { query } from '@/lib/db';
 import { User, UserRole } from './entities/user.entities';
-
-interface CreateUserInput {
-  username: string;
-  passwordHash: string;
-  name: string;
-  lineId: string;
-  userRole: UserRole;
-  createdDate?: Date;
-  updatedDate?: Date;
-  lastedLoginDate?: Date;
-}
-
-interface UpdateProfileInput {
-  name?: string;
-  username?: string;
-  lineId?: string;
-}
+import { CreateUserInput, UpdateProfileInput } from './dto/update-profile.dto';
 
 export const userRepository = {
-async findByUsername(username: string): Promise<User | null> {
+  async findByUsername(username: string): Promise<User | null> {
     const { rows } = await query<User>(
       `SELECT * FROM users WHERE username = $1`,
       [username]
@@ -36,7 +20,7 @@ async findByUsername(username: string): Promise<User | null> {
     return rows[0] ?? null;
   },
 
-    async findAll(page: number, limit: number): Promise<{ users: User[]; total: number }> {
+  async findAll(page: number, limit: number): Promise<{ users: User[]; total: number }> {
     const offset = (page - 1) * limit;
 
     const [usersResult, countResult] = await Promise.all([
@@ -56,10 +40,10 @@ async findByUsername(username: string): Promise<User | null> {
   async create(data: CreateUserInput): Promise<User> {
     const now = new Date();
     const { rows } = await query<User>(
-      `INSERT INTO users (username, password_hash, name, user_role, line_id, created_date, updated_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO users (username, password_hash, name, user_role, line_id, created_date, updated_date, company_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [data.username, data.passwordHash, data.name, data.userRole, data.lineId, now, now]
+      [data.username, data.passwordHash, data.name, data.userRole, data.lineId, now, now, data.companyName]
     );
 
     const user = rows[0];
@@ -68,7 +52,7 @@ async findByUsername(username: string): Promise<User | null> {
     }
     return user;
   },
-  
+
   async updateProfile(id: string, data: UpdateProfileInput): Promise<User | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -82,7 +66,7 @@ async findByUsername(username: string): Promise<User | null> {
       fields.push(`username = $${paramIndex++}`);
       values.push(data.username);
     }
-    if(data.lineId !== undefined){
+    if (data.lineId !== undefined) {
       fields.push(`line_id = $${paramIndex++}`);
       values.push(data.lineId);
     }

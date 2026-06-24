@@ -17,6 +17,11 @@ import { ForbiddenError, UnauthorizedError } from './auth-guard';
 import { UnitNotFoundError } from '@/modules/units/unit.error';
 import { InventoryNameAlreadyExist, InventoryNotFoundError, InventoryUsingSupplier, InventoryUsingUnit } from '@/modules/inventories/inventory.error';
 import { OrderNotFoundError, OrderSignatureIsEmpty } from '@/modules/order/order.error';
+import {
+    InvalidCredentialsError as AuthInvalidCredentialsError,
+    InvalidRefreshTokenError,
+    UserNotFoundError as AuthUserNotFoundError
+} from '@/modules/auth/auth.error';
 
 // นำเข้าฟังก์ชันจัดรูปแบบ Zod Error ของคุณ
 export interface FormattedZodIssue {
@@ -46,11 +51,14 @@ export function handleError(err: unknown) {
     if (err instanceof UsernameAlreadyExistsError) {
         return NextResponse.json({ error: err.message }, { status: 409 });
     }
-    if (err instanceof InvalidCredentialsError) {
+    if (err instanceof InvalidCredentialsError || err instanceof AuthInvalidCredentialsError) {
         return NextResponse.json({ error: err.message }, { status: 401 });
     }
-    if (err instanceof UserNotFoundError) {
+    if (err instanceof UserNotFoundError || err instanceof AuthUserNotFoundError) {
         return NextResponse.json({ error: err.message }, { status: 404 });
+    }
+    if (err instanceof InvalidRefreshTokenError) {
+        return NextResponse.json({ error: err.message }, { status: 401 });
     }
 
     // 2. จัดการ User Domain Errors (ตัวอย่าง)

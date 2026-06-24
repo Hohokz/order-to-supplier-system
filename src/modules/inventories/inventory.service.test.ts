@@ -3,6 +3,8 @@ import { inventoriesService } from './inventory.service';
 import { inventoryRepository } from './inventory.repository';
 import { InventoryNotFoundError } from './inventory.error';
 import type { Inventory } from './entities/inventory.entities';
+import { supplierRepository } from '../suppliers/supplier.repository';
+import { unitRepository } from '../units/unit.repository';
 
 // 1. Mock Repository
 vi.mock('./inventory.repository', () => ({
@@ -12,6 +14,19 @@ vi.mock('./inventory.repository', () => ({
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
+        existWithInventoryName: vi.fn(),
+    },
+}));
+
+vi.mock('../suppliers/supplier.repository', () => ({
+    supplierRepository: {
+        existById: vi.fn(),
+    },
+}));
+
+vi.mock('../units/unit.repository', () => ({
+    unitRepository: {
+        existById: vi.fn(),
     },
 }));
 
@@ -46,6 +61,9 @@ function createMockInventory(overrides: Partial<Inventory> = {}): Inventory {
 describe('inventoriesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(supplierRepository.existById).mockResolvedValue(true);
+        vi.mocked(unitRepository.existById).mockResolvedValue(true);
+        vi.mocked(inventoryRepository.existWithInventoryName).mockResolvedValue(false);
     });
 
     describe('getInventory', () => {
@@ -79,7 +97,7 @@ describe('inventoriesService', () => {
 
             const result = await inventoriesService.listInventories(1, 10);
 
-            expect(inventoryRepository.findAll).toHaveBeenCalledWith(1, 10);
+            expect(inventoryRepository.findAll).toHaveBeenCalledWith(1, 10, undefined);
             expect(result.data).toHaveLength(2);
             expect(result.totalPages).toBe(2);
         });

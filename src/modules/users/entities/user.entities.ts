@@ -10,6 +10,7 @@ export interface User extends QueryResultRow {
   line_id: string;
   name: string;
   user_role: UserRole;
+  company_name: string;
   created_date: Date;
   updated_date: Date;
   lasted_login_date: Date;
@@ -23,6 +24,7 @@ export function toSafeUser(user: User): SafeUser {
     username: user.username,
     name: user.name,
     user_role: user.user_role,
+    company_name: user.company_name,
     line_id: user.line_id,
     created_date: user.created_date,
     updated_date: user.updated_date,

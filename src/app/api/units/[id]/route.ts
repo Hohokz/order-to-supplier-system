@@ -13,7 +13,7 @@ export async function GET(
   return unitsController.getById(req, resolvedParams);
 }
 
-export async function PUT(
+export async function PATCH(
   req: NextRequest,
   { params }: { params: RouteParams }
 ) {

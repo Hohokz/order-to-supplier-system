@@ -7,6 +7,7 @@ export const CreateOrderInput = z.object({
     inventory_id: z.string(),
     quantity: z.number().int().min(1),
     order_quantity: z.number().int().min(1),
+    delivery_when: z.string().min(1)
   })).min(1, "Order must have at least one item"),
 });
 

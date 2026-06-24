@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useAuth, User } from '@/context/AuthContext';
 import { apiClient } from '@/lib/api-client';
 import { Input } from '@/components/ui/Input';
+import { useModal } from '@/context/ModalContext';
 
 interface LoginResponse {
   accessToken: string;
@@ -22,6 +23,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const { login } = useAuth();
+  const { showError } = useModal();
   const [serverError, setServerError] = useState<string>('');
   
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
@@ -34,11 +36,9 @@ export function LoginForm() {
       const result = await apiClient.post<LoginResponse>('/api/auth/login', data);
       login(result.accessToken, result.user);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setServerError(err.message);
-      } else {
-        setServerError('เกิดข้อผิดพลาดที่ไม่รู้จักจากระบบหลังบ้าน');
-      }
+      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดที่ไม่รู้จักจากระบบหลังบ้าน';
+      setServerError(message);
+      showError(message, 'เข้าสู่ระบบไม่สำเร็จ');
     }
   };
 

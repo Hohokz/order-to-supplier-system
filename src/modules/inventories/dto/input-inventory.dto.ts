@@ -9,7 +9,8 @@ export const CreateInventoryInput = z.object({
   unit_price: z.number().min(0, 'ราคาต่อหน่วยต้องไม่ติดลบ'),
   status: z.enum(INVENTORY_STATUS).optional().default('ACTIVE'),
   supplier_id: z.string().uuid('รูปแบบ Supplier ID ไม่ถูกต้อง'),
-  unit_id: z.string()
+  unit_id: z.string(),
+  safety_quantity: z.number().min(0, 'จำนวนต้องไม่ติดลบ'),
 });
 
 export const UpdateInventoryInput = CreateInventoryInput.partial();

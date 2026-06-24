@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ModalProvider } from "@/context/ModalContext";
 
 export const metadata: Metadata = {
   title: "ระบบจัดการคำสั่งซื้อ",
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <AuthProvider>
-          {children}
+          <ModalProvider>
+            {children}
+          </ModalProvider>
         </AuthProvider>
       </body>
     </html>
