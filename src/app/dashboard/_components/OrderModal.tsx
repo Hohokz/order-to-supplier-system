@@ -7,7 +7,6 @@ import { useAuth } from '@/context/AuthContext';
 interface OrderModalProps {
   order: OrderWithItems | null;
   onClose: () => void;
-  // 💡 ปรับจาก string เป็น number ให้ตรงสเปก Entity ปัจจุบัน
   onApprove: (orderId: number, supplierId: string) => Promise<void>;
 }
 
@@ -16,7 +15,6 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
   const [activeSupplier, setActiveSupplier] = useState<string>('');
   const [isApproving, setIsApproving] = useState<boolean>(false);
 
-  // จัดกลุ่มสินค้าตามชื่อ Supplier เพื่อแยกแท็บ
   const groupedItems = order
     ? order.items.reduce((acc, item) => {
       const supplier = item.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
@@ -38,18 +36,11 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
   if (!order) return null;
 
   const currentItems = groupedItems[activeSupplier] || [];
-
-  // 💡 ดึง supplier_id ของแท็บปัจจุบันออกมาใช้งาน
   const currentSupplierId = currentItems[0]?.supplier_id;
-
-  // 💡 เช็คว่า "ทุกรายการ" ในแท็บปัจจุบันนี้ได้รับการอนุมัติไปแล้วหรือยัง
   const isTabApproved = currentItems.length > 0 && currentItems.every(item => item.approve_status === 'APPROVED');
-
-  // 💡 ค้นหาชื่อผู้อนุมัติเฉพาะของแท็บเจ้านี้มาแสดงผล
   const tabApprovedBy = currentItems.find(item => item.approve_by)?.approve_by || null;
 
   const handleApproveClick = async () => {
-    // 💡 ถ้าลืมลง supplier_id หรือเป็นข้อมูลเก่าในเบส ให้แจ้งเตือนบอกหน้าจอเลย จะได้ไม่ยืนงง
     if (!currentSupplierId) {
       alert("❌ ไม่สามารถอนุมัติได้: รายการนี้ไม่มี Supplier ID (อาจเป็นออเดอร์เก่าระบบเดิม ให้ทดลองสร้างออเดอร์ใหม่เพื่อทดสอบครับ)");
       return;
@@ -84,7 +75,6 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
         <div className="bg-zinc-50/20 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
           {supplierNames.map((name) => {
             const isActive = activeSupplier === name;
-            // เช็คสถานะอนุมัติแยกของซัพพลายเออร์แต่ละเจ้าเพื่อเอาไปโชว์บนชื่อแท็บ (Optional)
             const isThisTabApproved = groupedItems[name]?.every(item => item.approve_status === 'APPROVED');
 
             return (
@@ -102,7 +92,7 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
           })}
         </div>
 
-        {/* ตารางสินค้าสไตล์ Clean UI */}
+        {/* ตารางสินค้า */}
         <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-white">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
@@ -111,32 +101,73 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
                   <th className="py-3 px-2 text-left font-medium min-w-[180px]">ชื่อสินค้าวัตถุดิบ</th>
                   <th className="py-3 px-2 font-medium w-24">2 รอบก่อนหน้า</th>
                   <th className="py-3 px-2 font-medium w-24">1 รอบก่อนหน้า</th>
-                  <th className="py-3 px-2 text-zinc-900 font-medium w-28">คงเหลือ</th>
-                  <th className="py-3 px-2 text-black font-black w-28">สั่งเพิ่ม</th>
-                  <th className="py-3 px-2 text-zinc-400 font-medium w-24">สถานะชิ้นนี้</th>
+                  <th className="py-3 px-2 font-medium w-28">คงเหลือ (Safety)</th>
+                  <th className="py-3 px-2 font-black w-28">สั่งเพิ่ม</th>
+                  <th className="py-3 px-2 font-medium w-24">สถานะชิ้นนี้</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                {currentItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors text-center">
-                    <td className="py-4 px-2 font-bold text-zinc-900 text-left">{item.inventory_name}</td>
-                    <td className="py-4 px-2 text-zinc-400 font-mono">-</td>
-                    <td className="py-4 px-2 text-zinc-400 font-mono">-</td>
-                    <td className="py-4 px-2 font-mono font-semibold text-zinc-500">{item.quantity.toLocaleString()} {item.unit_name}</td>
-                    <td className="py-4 px-2 font-mono font-black text-zinc-900 text-sm">+{item.order_quantity.toLocaleString()} {item.unit_name}</td>
-                    <td className="py-4 px-2">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${item.approve_status === 'APPROVED' ? 'bg-zinc-100 text-zinc-800' : 'bg-amber-50 text-amber-600'}`}>
-                        {item.approve_status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-zinc-100">
+                {currentItems.map((item) => {
+                  // 🚀 ประกาศตัวแปรทั้งหมดไว้ใน Scope นี้เพื่อให้เรียกใช้ได้ทุกบรรทัด
+                  const currentCount = Number(item.quantity) || 0;
+                  const orderCount = Number(item.order_quantity) || 0; // ต้องมีบรรทัดนี้ครับ
+                  const safetyLimitNum = Number(item.safety_quantity) || 0;
+
+                  const isOrdered = orderCount > 0;
+                  const isBelowSafety = currentCount < safetyLimitNum;
+
+                  // 🔴 ลอจิกสี: แดงต้องมาก่อนเขียวเสมอตามที่คุยกันไว้
+                  let rowStyle = "";
+                  let textMainColor = "text-zinc-900";
+                  let textSubColor = "text-zinc-500";
+
+                  if (isBelowSafety) {
+                    rowStyle = "bg-red-50/80 text-red-900/40 border-red-100";
+                    textMainColor = "text-red-700/80 font-bold";
+                    textSubColor = "text-red-500/60";
+                  } else if (isOrdered) {
+                    rowStyle = "bg-emerald-50/60 text-emerald-950 border-emerald-100 hover:bg-emerald-50 transition-colors";
+                    textMainColor = "text-emerald-900 font-bold";
+                    textSubColor = "text-emerald-700 font-semibold";
+                  } else {
+                    rowStyle = "bg-zinc-50/70 text-zinc-400 border-zinc-200 pointer-events-none select-none opacity-60";
+                    textMainColor = "text-zinc-400";
+                    textSubColor = "text-zinc-400/70";
+                  }
+
+                  return (
+                    <tr key={item.id} className={`transition-colors text-center ${rowStyle}`}>
+                      <td className={`py-4 px-2 text-left ${textMainColor}`}>{item.inventory_name}</td>
+                      <td className="py-4 px-2 opacity-30 font-mono">-</td>
+                      <td className="py-4 px-2 opacity-30 font-mono">-</td>
+
+                      <td className={`py-4 px-2 font-mono ${textSubColor}`}>
+                        {item.quantity.toLocaleString()} {item.unit_name}
+                        <span className="text-[10px] block opacity-70">
+                          (Min: {safetyLimitNum.toLocaleString()})
+                        </span>
+                      </td>
+
+                      <td className="py-4 px-2 font-mono text-sm font-black">
+                        {isOrdered ? `+${orderCount.toLocaleString()}` : '0'} {item.unit_name}
+                      </td>
+
+                      <td className="py-4 px-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono 
+            ${item.approve_status === 'APPROVED' ? 'bg-zinc-900 text-white' :
+                            item.approve_status === 'NOT_ORDERED' ? 'bg-zinc-200 text-zinc-500' : 'bg-amber-100 text-amber-700'}`}>
+                          {item.approve_status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* ท้าย Modal ควบคุมการอนุมัติเฉพาะแท็บเจ้านี้ */}
+        {/* ท้าย Modal */}
         <div className="p-4 border-t border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
           <div className="text-[10px] text-zinc-400 font-medium space-y-0.5">
             <p>ผู้จัดทำคำสั่งซื้อ: <strong className="text-zinc-700">{order.created_by}</strong></p>

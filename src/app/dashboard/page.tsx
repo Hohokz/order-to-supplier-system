@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react'; // 🚀 1. เพิ่มการ Import Suspense มาจาก React
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/api-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { OrderWithItems, ApiResponse } from '@/types/order';
 
@@ -11,9 +11,11 @@ import { Sidebar } from './_components/Sidebar';
 import { OrderTable } from './_components/OrderTable';
 import { OrderModal } from './_components/OrderModal';
 
-export default function DashboardPage() {
+// 🚀 2. เปลี่ยนชื่อฟังก์ชันเนื้อหาหลักจาก DashboardPage ให้กลายเป็น DashboardContentแทน
+function DashboardContent() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
@@ -37,14 +39,11 @@ export default function DashboardPage() {
     signature: '',
   });
 
-  // 💡 1. ปรับไทป์ orderId จาก string เป็น number ให้ตรงสเปกตาราง
   const handleApproveOrder = async (orderId: number, supplierId: string) => {
     try {
       setError('');
-      // ยิง PATCH ข้ามไปหา Endpoint เส้นใหม่ที่คุณเพิ่งทำเสร็จได้เลย
       await apiClient.patch(`/api/orders/${orderId}/approve-supplier`, { supplier_id: supplierId });
 
-      // 💡 2. เจาะลึกไปอัปเดตสเตตัสเฉพาะไอเทมของ Supplier เจ้านี้ในรายการออเดอร์ทั้งหมด
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
           order.id === orderId
@@ -65,7 +64,6 @@ export default function DashboardPage() {
         )
       );
 
-      // 💡 3. เจาะลึกไปอัปเดตสเตตัสเฉพาะไอเทมของ Supplier เจ้านี้ในป๊อปอัป Modal ที่กำลังเปิดอยู่
       setSelectedOrder((prevSelected) =>
         prevSelected && prevSelected.id === orderId
           ? {
@@ -95,12 +93,14 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!isAuthenticated) {
-        router.push('/login');
+        // 🚀 ดึงเลขที่กดมาจากไลน์ แล้วแปะท้ายส่งไปหน้า Login ด้วยครับ
+        const openOrderId = searchParams.get('openOrder') || '';
+        router.push(`/login${openOrderId ? `?openOrder=${openOrderId}` : ''}`);
       } else if (user?.user_role === 'OBSERVER') {
         router.push('/order');
       }
     }
-  }, [isAuthenticated, isAuthLoading, user, router]);
+  }, [isAuthenticated, isAuthLoading, user, router, searchParams]);
 
   useEffect(() => {
     if (isAuthLoading || !isAuthenticated) return;
@@ -120,7 +120,7 @@ export default function DashboardPage() {
           }
         };
 
-        const result = await apiClient.post<ApiResponse>('/api/orders/all', payload);
+        const result = await apiClient.post<ApiResponse>('/api/dashboard/all', payload);
 
         const sorted = result.data.sort((a, b) => {
           const dateA = new Date(a.order_date || a.created_date).getTime();
@@ -143,6 +143,18 @@ export default function DashboardPage() {
 
     fetchOrders();
   }, [isAuthenticated, isAuthLoading, page, appliedFilters]);
+
+  useEffect(() => {
+    const openOrderId = searchParams.get('openOrder');
+
+    if (openOrderId && orders.length > 0) {
+      const targetOrder = orders.find(order => order.id === Number(openOrderId));
+
+      if (targetOrder) {
+        setSelectedOrder(targetOrder);
+      }
+    }
+  }, [searchParams, orders]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +192,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 🔍 กล่องค้นหาคุมสไตล์โครงร่างมนกลมสมดุล */}
           <form onSubmit={handleSearchSubmit} className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm mb-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="flex flex-col gap-1.5">
@@ -241,7 +252,6 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* 📑 แถบสลับหน้าเว็บ (Pagination Bar) สไตล์แคปซูลเรียบหรู */}
         <div className="mt-8 pt-4 border-t border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-zinc-400 bg-transparent">
           <div>
             แสดงรายการทั้งหมด <strong className="text-zinc-800 font-mono">{totalItems}</strong> รายการ (หน้า {page} จาก {totalPages})
@@ -278,10 +288,23 @@ export default function DashboardPage() {
   );
 }
 
+// 🚀 3. ใช้ฟังก์ชันหลักทำหน้าที่ครอบด้วย <Suspense> เพื่อสยบบั๊กไคลเอนต์ค้างตอนเปลี่ยนหน้า
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="animate-spin h-8 w-8 border-2 border-black border-t-transparent rounded-full" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
 const mockApiResponse: ApiResponse = {
   data: [
     {
-      id: 4, // 💡 ปรับเป็น number เรียบร้อย
+      id: 4,
       signature: "Apiwat",
       created_date: "2026-06-17T08:32:35.318Z",
       created_by: "pi",
@@ -291,15 +314,16 @@ const mockApiResponse: ApiResponse = {
           id: "58b22995-ee3c-4537-a194-b392bfaee481",
           inventory_id: "inv-a101",
           inventory_name: "วัตถุดิบ A",
-          supplier_id: "sup-a001", // 💡 เพิ่มไอดีซัพพลายเออร์จำลองสำหรับคัดกรองแท็บ
+          supplier_id: "sup-a001",
           supplier_name: "บริษัท เอ จำกัด",
           unit: "KG",
           unit_name: "กิโลกรัม",
           quantity: 5,
           order_quantity: 5,
-          approve_status: "PENDING", // 💡 ย้ายมาอยู่ระดับไอเทมรายชิ้นตามระเบียบใหม่
-          approve_by: null,          // 💡 ย้ายมาอยู่ระดับไอเทมรายชิ้นตามระเบียบใหม่
-          approve_date: null         // 💡 ย้ายมาอยู่ระดับไอเทมรายชิ้นตามระเบียบใหม่
+          approve_status: "PENDING",
+          approve_by: null,
+          approve_date: null,
+          safety_quantity: 1
         }
       ]
     }

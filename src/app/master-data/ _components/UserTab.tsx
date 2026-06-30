@@ -8,7 +8,7 @@ interface UserRow {
     id: string;
     username: string;
     name?: string;
-    user_role: 'APPROVER' | 'OBSERVER'; // 💡 บีบไทป์ให้ตรงตาม Entity จริงของระบบ
+    user_role: 'APPROVER' | 'OBSERVER'; 
     line_id?: string;
     company_name?: string;
 }
@@ -18,7 +18,7 @@ const initialFormData = {
     username: '',
     name: '',
     password: '',
-    user_role: 'OBSERVER', // 💡 เริ่มต้นด้วยสิทธิ์ดูเท่านั้นเพื่อความปลอดภัย
+    user_role: 'OBSERVER', 
     line_id: '',
     company_name: ''
 };
@@ -33,7 +33,9 @@ export function UserTab() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [formData, setFormData] = useState(initialFormData);
 
-    // ดึงสิทธิ์คนปัจจุบันเพื่อควบคุมการลบ (ล็อกไว้ว่าต้องเป็น APPROVER เท่านั้นตามเงื่อนไขเดิม)
+    // 💡 1. เพิ่ม State สำหรับเก็บบัญชีที่ต้องการจะลบ (ถ้ามีค่า = เปิดป๊อปอัปยืนยันการลบ)
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; username: string } | null>(null);
+
     const currentUser = { user_role: 'APPROVER' };
 
     const fetchData = useCallback(async () => {
@@ -110,16 +112,22 @@ export function UserTab() {
         }
     };
 
-    const handleDelete = async (id: string, username: string) => {
+    // 💡 2. ฟังก์ชันเช็คสิทธิ์เบื้องต้นก่อนกางแผ่นป๊อปอัปยืนยันการลบ
+    const handleConfirmDelete = (id: string, username: string) => {
         if (currentUser?.user_role !== 'APPROVER') {
             return showError('คุณไม่มีสิทธิ์ในการลบบัญชีผู้ใช้รายนี้', 'สิทธิ์ไม่เพียงพอ');
         }
+        setDeleteTarget({ id, username });
+    };
 
-        if (!window.confirm(`คุณต้องการลบบัญชีผู้ใช้ "${username}" ใช่หรือไม่?`)) return;
+    // 💡 3. ฟังก์ชันยิง API ลบบัญชีจริงหลังจากกดยืนยันใน Custom Modal แล้ว
+    const executeDelete = async () => {
+        if (!deleteTarget) return;
         try {
             setIsLoading(true);
-            await apiClient.delete(`/api/users/${id}`);
+            await apiClient.delete(`/api/users/${deleteTarget.id}`);
             showSuccess('ลบบัญชีผู้ใช้งานออกจากระบบสำเร็จแล้ว');
+            setDeleteTarget(null); // ล้างสเตตัสเพื่อปิดป๊อปอัป
             fetchData();
         } catch (err) {
             console.error('Delete user failed:', err);
@@ -187,7 +195,6 @@ export function UserTab() {
                                     <td className="py-4 px-2 font-medium text-zinc-700">{item.name || '-'}</td>
                                     <td className="py-4 px-2 text-zinc-600 font-medium">{item.company_name || '-'}</td>
                                     <td className="py-4 px-2 text-center">
-                                        {/* 💡 ปรับการแสดงผลสีกระดุมสิทธิ์ให้เหลือแค่ APPROVER และ OBSERVER ตามจริง */}
                                         <span className={`px-3 py-1 text-[11px] font-black rounded-full font-mono 
                                             ${item.user_role === 'APPROVER' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-zinc-100 text-zinc-500'}`}>
                                             {item.user_role}
@@ -202,7 +209,8 @@ export function UserTab() {
 
                                             {currentUser?.user_role === 'APPROVER' && (
                                                 <button
-                                                    onClick={() => handleDelete(item.id, item.username)}
+                                                    // 💡 เปลี่ยนมาเรียกตัวคอนเฟิร์มแบบใหม่แทน window.confirm
+                                                    onClick={() => handleConfirmDelete(item.id, item.username)}
                                                     className="font-bold px-4 py-1.5 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 transition-all"
                                                 >
                                                     ลบ
@@ -251,8 +259,12 @@ export function UserTab() {
 
                         <div className="space-y-1">
                             <label className="text-[10px] font-bold text-zinc-500">สิทธิ์พนักงาน (Role)</label>
-                            {/* 💡 5. ปรับตัวเลือกในเมนูให้เหลือแค่สิทธิ์ที่ระบบรองรับจริงในคลังข้อมูล */}
-                            <select disabled={isSubmitting} value={formData.user_role} onChange={(e) => setFormData({ ...formData, user_role: e.target.value as any })} className="w-full border border-zinc-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:border-black font-bold disabled:bg-zinc-50">
+                            <select
+                                disabled={isSubmitting}
+                                value={formData.user_role}
+                                onChange={(e) => setFormData({ ...formData, user_role: e.target.value })}
+                                className="w-full border border-zinc-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:border-black font-bold disabled:bg-zinc-50"
+                            >
                                 <option value="OBSERVER">OBSERVER (ดูได้อย่างเดียว)</option>
                                 <option value="APPROVER">APPROVER (ผู้อนุมัติระบบ)</option>
                             </select>
@@ -263,6 +275,34 @@ export function UserTab() {
                             <button type="submit" disabled={isSubmitting} className="px-4 py-1.5 bg-black text-white text-xs font-black rounded-xl hover:bg-zinc-800 disabled:bg-zinc-400 transition-all">{isSubmitting ? 'กำลังบันทึก...' : 'ยืนยันข้อมูล'}</button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* 💡 4. เพิ่ม Custom Delete Confirmation Modal สไตล์โมเดิร์นคลีน ไร้เงาเหลี่ยม และดัก &quot; เรียบร้อย */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl border border-zinc-200 w-full max-w-xs p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+                        <h3 className="text-sm font-black text-red-600 border-b border-zinc-100 pb-2">⚠️ ยืนยันการลบบัญชีผู้ใช้</h3>
+                        <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+                            คุณต้องการลบบัญชีผู้ใช้ <strong className="text-zinc-900">&quot;{deleteTarget.username}&quot;</strong> ออกจากระบบใช่หรือไม่? พนักงานท่านนี้จะไม่สามารถเข้าสู่ระบบได้อีกต่อไป
+                        </p>
+                        <div className="flex justify-end gap-2 pt-3 border-t border-zinc-50">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteTarget(null)}
+                                className="px-4 py-1.5 border border-zinc-200 text-xs font-bold text-zinc-500 rounded-xl hover:bg-zinc-50"
+                            >
+                                ยกเลิก
+                            </button>
+                            <button
+                                type="button"
+                                onClick={executeDelete}
+                                className="px-4 py-1.5 bg-red-600 text-white text-xs font-black rounded-xl hover:bg-red-700 transition-all"
+                            >
+                                ยืนยันลบ
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

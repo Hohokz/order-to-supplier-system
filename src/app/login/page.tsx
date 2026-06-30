@@ -1,28 +1,33 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react'; // 🚀 1. เพิ่ม Suspense
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+// 🚀 2. เพิ่ม useSearchParams สำหรับแอบส่องเลขออเดอร์จาก LINE
+import { useRouter, useSearchParams } from 'next/navigation'; 
 import { LoginForm } from './_components/LoginForm';
 
-export default function LoginPage() {
+function LoginContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams(); // 🚀 3. ประกาศตัวแปรส่องพารามิเตอร์ URL
 
-  // 💡 [GUEST-ONLY ROUTE GUARD] บล็อกคนมีสิทธิ์ไม่ให้เห็นหน้าล็อกอินซ้ำซ้อน
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      if (user?.user_role === 'APPROVE') {
-        router.push('/dashboard');
+      // 🚀 4. ดักจับดูว่ามีเลขออเดอร์จากไลน์แปะมากับลิงก์ล็อกอินไหม
+      const openOrder = searchParams.get('openOrder');
+      const appendParam = openOrder ? `?openOrder=${openOrder}` : '';
+
+      if (user?.user_role === 'APPROVER') {
+        // 🚀 5. ดีดพุ่งตรงไปที่หน้า Dashboard พร้อมพ่วงไอดีออเดอร์ไปเปิดป๊อปอัปทันที
+        router.push(`/dashboard${appendParam}`); 
       } else if (user?.user_role === 'OBSERVER') {
         router.push('/order');
       } else {
-        router.push('/dashboard');
+        router.push(`/dashboard${appendParam}`);
       }
     }
-  }, [isAuthenticated, isLoading, user, router]);
+  }, [isAuthenticated, isLoading, user, router, searchParams]);
 
-  // ระหว่างที่ระบบเปิดเครื่องมาค้นหาประวัติ Token ในเครื่องให้หมุนค้างไว้ก่อน ป้องกัน UI แวบกระตุก
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
@@ -31,7 +36,6 @@ export default function LoginPage() {
     );
   }
 
-  // หากตรวจพบว่ามี Token ล็อกอินค้างอยู่แล้ว ให้ส่งค่าว่างตัดเนื้อหาทิ้ง เพื่อสลับหน้าอย่างปลอดภัย
   if (isAuthenticated) {
     return null;
   }
@@ -39,8 +43,6 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 sm:px-8 md:px-16 lg:px-8">
       <div className="w-full sm:max-w-md md:max-w-lg lg:max-w-md space-y-6 md:space-y-8 rounded-2xl bg-white p-6 sm:p-8 md:p-10 shadow-xl border border-zinc-100 transition-all duration-300">
-        
-        {/* ส่วนหัวข้อโลโก้ขาวดำคงเดิม */}
         <div className="text-center">
           <div className="mx-auto h-12 w-12 rounded-xl bg-black flex items-center justify-center shadow-md shadow-zinc-300">
             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -51,10 +53,21 @@ export default function LoginPage() {
           <p className="mt-1.5 md:mt-2 text-xs md:text-sm text-zinc-500">ระบบจัดการคำสั่งซื้อและคลังสินค้า</p>
         </div>
 
-        {/* 💡 เรียกใช้ชิ้นส่วนฟอร์มที่แยกกิ่งก้านออกมา */}
         <LoginForm />
-
       </div>
     </div>
+  );
+}
+
+// 🚀 6. ครอบฟังก์ชันเนื้อหาหลักด้วย Suspense กันบั๊กหน้าจอค้างตอนล็อกอิน
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="animate-spin h-8 w-8 border-2 border-black border-t-transparent rounded-full" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

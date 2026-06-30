@@ -20,6 +20,7 @@ export interface OrderItem {
   unit_name: string;
   quantity: number;
   order_quantity: number;
+  safety_quantity: number;
   approve_status: 'PENDING' | 'APPROVED' | string; // 💡 ย้ายมาอยู่ระดับไอเทมรายชิ้นตามตารางใหม่
   approve_by: string | null;                        // 💡 ย้ายมาอยู่ระดับไอเทมรายชิ้นตามตารางใหม่
   approve_date: string | null;                      // 💡 ย้ายมาอยู่ระดับไอเทมรายชิ้นตามตารางใหม่

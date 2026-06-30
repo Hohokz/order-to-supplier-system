@@ -1,7 +1,17 @@
 import { pool, query } from '@/lib/db';
 import { OrderResponseSchema, OrderResponse } from './dto/response/list-order-response.dto'
 import type { CreateOrderPayload } from './dto/input-order';
-import type { ListSuppliersQueryDto } from '../suppliers/dto/list-supplier.dto';
+
+// 🚀 1. สร้าง Interface ประกาศโครงสร้างแถวข้อมูลดิบที่ได้จาก SQL ดักไว้ตรงนี้ครับ
+interface RawOrderRow {
+    id: string | number;
+    signature: string;
+    created_date: string;
+    created_by: string;
+    order_date: string | null;
+    supplier_name: string | null;
+    items: unknown[];
+}
 
 export const orderRepository = {
     async findAll(page: number, limit: number, filters?: { orderDate?: string; approvedBy?: string; signature?: string }) {
@@ -9,31 +19,36 @@ export const orderRepository = {
         const filterClauses: string[] = [];
         const filterParams: (string | number)[] = [];
 
-        if (filters?.orderDate) {
-            filterClauses.push(`DATE(created_date) = $${filterParams.length + 1}`);
+        // 💡 แก้ไขจุดนี้ครับ: ดักจับไม่ให้เอาคำว่า 'null' หรือค่าว่างมาสร้างเป็นเงื่อนไข SQL
+        if (filters?.orderDate && filters.orderDate !== 'null' && filters.orderDate !== '') {
+            // 🚀 เติม o. นำหน้า created_date เพื่อระบุให้ชัดเจนว่าเป็นของตาราง orders ป้องกันปัญหากำกวม
+            filterClauses.push(`DATE(o.created_date) = $${filterParams.length + 1}`);
             filterParams.push(filters.orderDate);
         }
-        if (filters?.approvedBy) {
+        
+        if (filters?.approvedBy && filters.approvedBy !== '') {
             filterClauses.push(`oi.approve_by LIKE $${filterParams.length + 1}`);
             filterParams.push(`${filters.approvedBy}%`);
         }
-        if (filters?.signature) {
+        
+        if (filters?.signature && filters.signature !== '') {
             filterClauses.push(`o.signature LIKE $${filterParams.length + 1}`);
             filterParams.push(`${filters.signature}%`);
         }
 
         const whereSql = filterClauses.length > 0 ? `WHERE ${filterClauses.join(' AND ')}` : '';
 
-        // 💡 1. เติม MAX(s.supplier_name) as supplier_name ที่ระดับบนสุดของออเดอร์ตามคำขอครับ
+        // 🚀 ตรวจเช็คคำสั่ง SQL หลักด้านล่างด้วยว่าตรง WHERE ของเดิมเป็น whereSql แล้วหรือยัง
         const dataSql = `
                 SELECT o.id, o.signature, o.created_date, o.created_by, o.order_date,
                         MAX(s.supplier_name) as supplier_name, 
                         COALESCE(
                         json_agg(
                             json_build_object(
-                            'id', oi.id, 
+                            'id', oi.id::text, 
+                            'inventory_id', inv.id::text,
                             'inventory_name', inv.inventory_name,
-                            'supplier_id', oi.supplier_id,       
+                            'supplier_id', oi.supplier_id::text,       
                             'supplier_name', s.supplier_name,
                             'unit', u.id,
                             'unit_name', u.unit_name,
@@ -64,14 +79,13 @@ export const orderRepository = {
         `;
 
         const [dataResult, countResult] = await Promise.all([
-            query<ListSuppliersQueryDto>(dataSql, [...filterParams, limit, offset]),
+            query<RawOrderRow>(dataSql, [...filterParams, limit, offset]),
             query<{ count: string }>(countSql, filterParams)
         ]);
 
-        // 💡 2. ทำการ map เพื่อปรับแต่งไทป์ตัวแปรของแต่ละแถวให้ปลอดภัย ไทป์นิ่งๆ ก่อนส่งกลับไปหน้าเพจ
-        const sanitizedRows = dataResult.rows.map((row: any) => ({
+        const sanitizedRows = dataResult.rows.map((row) => ({
             ...row,
-            id: Number(row.id), // มั่นใจได้ว่าเป็นตัวเลขแน่นอน
+            id: Number(row.id), 
             supplier_name: row.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย',
             order_date: row.order_date || row.created_date
         }));
@@ -150,16 +164,42 @@ export const orderRepository = {
     },
 
     async approveBySupplier(orderId: number, supplierId: string, approvedBy: string): Promise<boolean> {
-        const now = new Date();
-        const sql = `
-            UPDATE order_items 
-            SET approve_status = 'APPROVED', 
-                approve_by = $1, 
-                approve_date = $2 
-            WHERE order_id = $3 AND supplier_id = $4;
-        `;
-        const { rowCount } = await query(sql, [approvedBy, now, orderId, supplierId]);
-        return (rowCount ?? 0) > 0;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN'); 
+            const now = new Date();
+
+            const updateItemsSql = `
+                UPDATE order_items 
+                SET approve_status = 'APPROVED', 
+                    approve_by = $1, 
+                    approve_date = $2 
+                WHERE order_id = $3 AND supplier_id = $4 AND approve_status = 'PENDING'
+                RETURNING inventory_id, quantity, order_quantity;
+            `;
+            const res = await client.query(updateItemsSql, [approvedBy, now, orderId, supplierId]);
+
+            if ((res.rowCount ?? 0) === 0) {
+                await client.query('ROLLBACK');
+                return false;
+            }
+
+            // 🚀 แก้ไขจุดนี้: เปลี่ยนคำว่า quantity หลังคำว่า SET ให้เป็นชื่อคอลัมน์จริงในตารางของคุณ
+            // เช่น ถ้าในเบสชื่อ stock ให้แก้เป็น SET stock = $1
+            const updateInvSql = `UPDATE inventories SET inventory_quantity = $1 WHERE id = $2;`;
+
+            for (const item of res.rows) {
+                await client.query(updateInvSql, [Number(item.quantity), item.inventory_id]);
+            }
+
+            await client.query('COMMIT'); 
+            return true;
+        } catch (e) {
+            await client.query('ROLLBACK'); 
+            throw e;
+        } finally {
+            client.release(); 
+        }
     },
 
     async delete(id: number): Promise<boolean> {

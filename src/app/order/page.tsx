@@ -13,9 +13,11 @@ export default function OrderPage() {
   const { showError, showSuccess } = useModal();
   const router = useRouter();
 
+  // 🚀 เพิ่ม safety_quantity เข้ามาใน Type ขยายของฟอร์มตรงๆ เพื่อหลีกเลี่ยงการใช้ any
   type FormItemType = MasterInventoryRow & {
     quantity: number | string;
     order_quantity: number | string;
+    safety_quantity?: number | string;
   };
 
   const [items, setItems] = useState<FormItemType[]>([]);
@@ -49,8 +51,8 @@ export default function OrderPage() {
         setItems(itemsWithFormState);
       } catch (err: unknown) {
         console.error(err);
-        const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
-        showError(message, 'ไม่สามารถดึงข้อมูลสินค้าได้');
+        const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+        showError(errorMessage, 'ไม่สามารถดึงข้อมูลสินค้าได้');
       } finally {
         setIsLoading(false);
       }
@@ -113,10 +115,9 @@ export default function OrderPage() {
       return;
     }
 
-    // 🚀 เพิ่มจุดดักกรองความปลอดภัย: ตรวจสอบกฎเหล็กของหลังบ้าน (quantity ต้อง >= 1)
     const hasInvalidQuantity = filteredItems.some((item) => {
       const currentQty = Number(item.quantity);
-      return isNaN(currentQty) || currentQty < 1;
+      return isNaN(currentQty) || currentQty < 0;
     });
 
     if (hasInvalidQuantity) {
@@ -133,7 +134,7 @@ export default function OrderPage() {
         signature: signature.trim(),
         items: filteredItems.map(item => ({
           inventory_id: item.id,
-          quantity: Number(item.quantity), // ส่งค่าตัวเลขการันตี >= 1 แน่นอน
+          quantity: Number(item.quantity),
           order_quantity: Number(item.order_quantity),
           delivery_when: 'IMMEDIATE'
         }))
@@ -228,59 +229,86 @@ export default function OrderPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-zinc-800">
-                    {currentItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors text-center">
+                    {currentItems.map((item) => {
+                      const currentCount = Number(item.quantity);
 
-                        <td className="py-4 px-2 font-bold text-zinc-900 text-left">
-                          <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
-                            {item.inventory_name}
-                          </span>
-                          <p className="text-[9px] font-medium text-zinc-400 mt-0.5 font-mono">
-                            ID: {item.id.slice(0, 8).toUpperCase()}
-                          </p>
-                        </td>
+                      // 🚀 1. แปลงค่าความปลอดภัยให้เป็น number การันตี Type-Safe
+                      const safetyLimitNum = typeof item.safety_quantity === 'number'
+                        ? item.safety_quantity
+                        : Number(item.safety_quantity) || 0;
 
-                        <td className="py-4 px-2 font-mono text-zinc-400 text-xs">-</td>
-                        <td className="py-4 px-2 font-mono text-zinc-400 text-xs">-</td>
+                      const hasInputtedStock = item.quantity !== '';
 
-                        <td className="py-3 px-2">
-                          <div className="flex items-center justify-center">
-                            <div className="flex items-center w-24 h-8 rounded-xl border border-zinc-200 bg-white px-2 focus-within:border-black transition-all">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="0"
-                                value={item.quantity}
-                                onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
-                                className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent"
-                              />
-                              <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
-                                {item.unit?.unit_name || 'หน่วย'}
-                              </span>
+                      // 🚀 2. ลอจิกวัดดวง: เช็คแค่ยอดคงเหลือต่ำกว่าเกณฑ์ความปลอดภัยเท่านั้น ไม่สนใจจำนวนสั่งเพิ่ม
+                      const isBelowSafety = !isNaN(currentCount) && currentCount < safetyLimitNum;
+
+                      // 🚀 3. สลับสีแถว: ถ้าคีย์สถิติต่ำกว่าเซฟตี้ปุ๊บ สาดแถบแดงเตือนทันที ทั่วไปใช้สีพื้นฐาน
+                      let rowBgClass = "hover:bg-zinc-50/50";
+                      if (hasInputtedStock && isBelowSafety) {
+                        rowBgClass = "bg-red-50/60 hover:bg-red-50/80 text-red-950 border-red-100 transition-colors";
+                      }
+
+                      return (
+                        <tr key={item.id} className={`transition-colors text-center ${rowBgClass}`}>
+
+                          <td className="py-4 px-2 font-bold text-zinc-900 text-left">
+                            <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
+                              {item.inventory_name}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
+                              <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
+                              {safetyLimitNum > 0 && (
+                                <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${isBelowSafety ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                  Min: {safetyLimitNum}
+                                </span>
+                              )}
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        <td className="py-3 px-2">
-                          <div className="flex items-center justify-center">
-                            <div className="flex items-center w-24 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="0"
-                                value={item.order_quantity}
-                                onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
-                                className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent"
-                              />
-                              <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
-                                {item.unit?.unit_name || 'หน่วย'}
-                              </span>
+                          <td className="py-4 px-2 font-mono text-zinc-400 text-xs">-</td>
+                          <td className="py-4 px-2 font-mono text-zinc-400 text-xs">-</td>
+
+                          <td className="py-3 px-2">
+                            <div className="flex items-center justify-center">
+                              {/* กรอบ Input คงเหลือเปลี่ยนเป็นสีแดงเมื่อต่ำกว่าเกณฑ์ความปลอดภัย */}
+                              <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 focus-within:border-black transition-all
+            ${hasInputtedStock && isBelowSafety ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200'}`}>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0"
+                                  value={item.quantity}
+                                  onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
+                                  className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent"
+                                />
+                                <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
+                                  {item.unit?.unit_name || 'หน่วย'}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                      </tr>
-                    ))}
+                          <td className="py-3 px-2">
+                            <div className="flex items-center justify-center">
+                              <div className="flex items-center w-24 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="0"
+                                  value={item.order_quantity}
+                                  onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
+                                  className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent"
+                                />
+                                <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
+                                  {item.unit?.unit_name || 'หน่วย'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                        </tr>
+                      );
+                    })} {/* 🚀 แก้วงเล็บปิดตรงจุดนี้เรียบร้อย ไหลลื่นแน่นอนครับ */}
                   </tbody>
                 </table>
               </div>

@@ -26,7 +26,7 @@ export const orderController = {
     async create(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = CreateOrderInput.parse(await req.json());
             const order = await orderService.createOrder({
