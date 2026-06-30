@@ -13,6 +13,16 @@ interface RawOrderRow {
     items: unknown[];
 }
 
+export interface ItemHistoryRow {
+    inventory_id: string;
+    cycle_1_stock: number | null;
+    cycle_1_order: number | null;
+    cycle_2_stock: number | null;
+    cycle_2_order: number | null;
+    cycle_3_stock: number | null;
+    cycle_3_order: number | null;
+}
+
 export const orderRepository = {
     async findAll(page: number, limit: number, filters?: { orderDate?: string; approvedBy?: string; signature?: string }) {
         const offset = (page - 1) * limit;
@@ -25,12 +35,12 @@ export const orderRepository = {
             filterClauses.push(`DATE(o.created_date) = $${filterParams.length + 1}`);
             filterParams.push(filters.orderDate);
         }
-        
+
         if (filters?.approvedBy && filters.approvedBy !== '') {
             filterClauses.push(`oi.approve_by LIKE $${filterParams.length + 1}`);
             filterParams.push(`${filters.approvedBy}%`);
         }
-        
+
         if (filters?.signature && filters.signature !== '') {
             filterClauses.push(`o.signature LIKE $${filterParams.length + 1}`);
             filterParams.push(`${filters.signature}%`);
@@ -85,12 +95,42 @@ export const orderRepository = {
 
         const sanitizedRows = dataResult.rows.map((row) => ({
             ...row,
-            id: Number(row.id), 
+            id: Number(row.id),
             supplier_name: row.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย',
             order_date: row.order_date || row.created_date
         }));
 
         return { data: sanitizedRows, total: Number(countResult.rows[0]?.count ?? 0) };
+    },
+
+    async getRecentOrderHistory(): Promise<ItemHistoryRow[]> {
+        const sql = `
+      WITH RankedOrders AS (
+        SELECT 
+          oi.inventory_id,
+          oi.quantity as stock_qty,
+          oi.order_quantity as order_qty,
+          o.created_date,
+          ROW_NUMBER() OVER(PARTITION BY oi.inventory_id ORDER BY o.created_date DESC) as rn
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        WHERE oi.order_quantity > 0
+      )
+      SELECT 
+        inventory_id::text,
+        MAX(CASE WHEN rn = 1 THEN stock_qty END) as cycle_1_stock,
+        MAX(CASE WHEN rn = 1 THEN order_qty END) as cycle_1_order,
+        MAX(CASE WHEN rn = 2 THEN stock_qty END) as cycle_2_stock,
+        MAX(CASE WHEN rn = 2 THEN order_qty END) as cycle_2_order,
+        MAX(CASE WHEN rn = 3 THEN stock_qty END) as cycle_3_stock,
+        MAX(CASE WHEN rn = 3 THEN order_qty END) as cycle_3_order
+      FROM RankedOrders
+      WHERE rn <= 3
+      GROUP BY inventory_id;
+    `;
+
+        const result = await query<ItemHistoryRow>(sql, []);
+        return result.rows;
     },
 
     async create(data: CreateOrderPayload & { createdBy: string }): Promise<OrderResponse> {
@@ -166,7 +206,7 @@ export const orderRepository = {
     async approveBySupplier(orderId: number, supplierId: string, approvedBy: string): Promise<boolean> {
         const client = await pool.connect();
         try {
-            await client.query('BEGIN'); 
+            await client.query('BEGIN');
             const now = new Date();
 
             const updateItemsSql = `
@@ -192,13 +232,13 @@ export const orderRepository = {
                 await client.query(updateInvSql, [Number(item.quantity), item.inventory_id]);
             }
 
-            await client.query('COMMIT'); 
+            await client.query('COMMIT');
             return true;
         } catch (e) {
-            await client.query('ROLLBACK'); 
+            await client.query('ROLLBACK');
             throw e;
         } finally {
-            client.release(); 
+            client.release();
         }
     },
 

@@ -19,6 +19,31 @@ export const orderService = {
       totalPages: Math.ceil(total / limit),
     };
   },
+  async getItemHistoryMap() {
+    const historyRows = await orderRepository.getRecentOrderHistory();
+
+    const historyMap: Record<string, {
+      cycle_1_stock: number | null;
+      cycle_1_order: number | null;
+      cycle_2_stock: number | null;
+      cycle_2_order: number | null;
+      cycle_3_stock: number | null;
+      cycle_3_order: number | null;
+    }> = {};
+
+    historyRows.forEach(row => {
+      historyMap[row.inventory_id] = {
+        cycle_1_stock: row.cycle_1_stock,
+        cycle_1_order: row.cycle_1_order,
+        cycle_2_stock: row.cycle_2_stock,
+        cycle_2_order: row.cycle_2_order,
+        cycle_3_stock: row.cycle_3_stock,
+        cycle_3_order: row.cycle_3_order
+      };
+    });
+
+    return historyMap;
+  },
 
   async createOrder(data: CreateOrderPayload & { createdBy: string }): Promise<OrderResponse> {
     if (!data.signature?.trim()) {
@@ -107,7 +132,7 @@ export const orderService = {
         if (approverEntity && approverEntity.line_id) {
           // ประกอบร่างข้อความแจ้งเตือนรูปแบบใหม่
           const messageText = `✅ คุณได้ทำการอนุมัติใบสั่งซื้อเรียบร้อยแล้ว!\n\nเลขที่ออเดอร์: #${orderId}\n🏢 ซัพพลายเออร์: ${supplierName}\n👤 ผู้อนุมัติรายการ: ${approvedBy}\n\n📋 รายการสินค้าที่จัดส่ง:\n${itemsText.trim()}\n\nสถานะ: APPROVED (ตัดยอดสต็อกในคลังสำเร็จ)`;
-          
+
           // ยิงข้อความตรงเข้าไลน์ทันที
           await sendLineMessage(approverEntity.line_id, messageText);
           console.log(`📲 ส่งรายละเอียดรายงานสรุปบิลรัน No. ไปยังไลน์ของ (${approvedBy}) สำเร็จ!`);

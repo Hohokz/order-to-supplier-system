@@ -8,17 +8,26 @@ import { useModal } from '@/context/ModalContext';
 import { Sidebar } from '../dashboard/_components/Sidebar';
 import { MasterInventoryRow, MasterInventoryResponse } from '@/types/inventory';
 
+type OrderHistory = {
+  cycle_1_stock: number | null;
+  cycle_1_order: number | null;
+  cycle_2_stock: number | null;
+  cycle_2_order: number | null;
+  cycle_3_stock: number | null;
+  cycle_3_order: number | null;
+};
+
+type FormItemType = MasterInventoryRow & {
+  quantity: number | string;
+  order_quantity: number | string;
+  safety_quantity?: number | string;
+  history?: OrderHistory;
+};
+
 export default function OrderPage() {
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const { showError, showSuccess } = useModal();
   const router = useRouter();
-
-  // 🚀 เพิ่ม safety_quantity เข้ามาใน Type ขยายของฟอร์มตรงๆ เพื่อหลีกเลี่ยงการใช้ any
-  type FormItemType = MasterInventoryRow & {
-    quantity: number | string;
-    order_quantity: number | string;
-    safety_quantity?: number | string;
-  };
 
   const [items, setItems] = useState<FormItemType[]>([]);
   const [signature, setSignature] = useState<string>('');
@@ -39,13 +48,23 @@ export default function OrderPage() {
     const fetchInitialItems = async () => {
       try {
         setIsLoading(true);
-        const result = await apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {});
-        const targetRows = result[0]?.rows || [];
+        const [masterResult, historyResult] = await Promise.all([
+          apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {}),
+          apiClient.get<Record<string, OrderHistory>>('/api/orders/history')
+        ]);
+        
+        const targetRows = masterResult[0]?.rows || [];
+        const historyMap = historyResult || {};
 
         const itemsWithFormState: FormItemType[] = targetRows.map(row => ({
           ...row,
           quantity: '',
-          order_quantity: ''
+          order_quantity: '',
+          history: historyMap[row.id] || {
+            cycle_1_stock: null, cycle_1_order: null,
+            cycle_2_stock: null, cycle_2_order: null,
+            cycle_3_stock: null, cycle_3_order: null
+          }
         }));
 
         setItems(itemsWithFormState);
@@ -222,6 +241,7 @@ export default function OrderPage() {
                   <thead>
                     <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
                       <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
+                      <th className="py-4 px-2 font-medium w-24">3 รอบก่อน</th>
                       <th className="py-4 px-2 font-medium w-24">2 รอบก่อน</th>
                       <th className="py-4 px-2 font-medium w-24">1 รอบก่อน</th>
                       <th className="py-4 px-2 font-medium text-zinc-900 w-28">คงเหลือ *</th>
@@ -232,25 +252,22 @@ export default function OrderPage() {
                     {currentItems.map((item) => {
                       const currentCount = Number(item.quantity);
 
-                      // 🚀 1. แปลงค่าความปลอดภัยให้เป็น number การันตี Type-Safe
                       const safetyLimitNum = typeof item.safety_quantity === 'number'
                         ? item.safety_quantity
                         : Number(item.safety_quantity) || 0;
 
                       const hasInputtedStock = item.quantity !== '';
-
-                      // 🚀 2. ลอจิกวัดดวง: เช็คแค่ยอดคงเหลือต่ำกว่าเกณฑ์ความปลอดภัยเท่านั้น ไม่สนใจจำนวนสั่งเพิ่ม
                       const isBelowSafety = !isNaN(currentCount) && currentCount < safetyLimitNum;
 
-                      // 🚀 3. สลับสีแถว: ถ้าคีย์สถิติต่ำกว่าเซฟตี้ปุ๊บ สาดแถบแดงเตือนทันที ทั่วไปใช้สีพื้นฐาน
                       let rowBgClass = "hover:bg-zinc-50/50";
                       if (hasInputtedStock && isBelowSafety) {
                         rowBgClass = "bg-red-50/60 hover:bg-red-50/80 text-red-950 border-red-100 transition-colors";
                       }
 
+                      const unitStr = item.unit?.unit_name || 'หน่วย';
+
                       return (
                         <tr key={item.id} className={`transition-colors text-center ${rowBgClass}`}>
-
                           <td className="py-4 px-2 font-bold text-zinc-900 text-left">
                             <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
                               {item.inventory_name}
@@ -265,14 +282,40 @@ export default function OrderPage() {
                             </div>
                           </td>
 
-                          <td className="py-4 px-2 font-mono text-zinc-400 text-xs">-</td>
-                          <td className="py-4 px-2 font-mono text-zinc-400 text-xs">-</td>
+                          {/* 3 รอบก่อน */}
+                          <td className="py-3 px-1">
+                            <div className="flex items-center justify-center">
+                              <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
+                                <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_3_stock !== null ? `${item.history?.cycle_3_stock} ${unitStr}` : '-'}</span></div>
+                                <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_3_order !== null ? `+${item.history?.cycle_3_order} ${unitStr}` : '-'}</span></div>
+                              </div>
+                            </div>
+                          </td>
 
+                          {/* 2 รอบก่อน */}
+                          <td className="py-3 px-1">
+                            <div className="flex items-center justify-center">
+                              <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
+                                <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_2_stock !== null ? `${item.history?.cycle_2_stock} ${unitStr}` : '-'}</span></div>
+                                <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_2_order !== null ? `+${item.history?.cycle_2_order} ${unitStr}` : '-'}</span></div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* 1 รอบก่อน */}
+                          <td className="py-3 px-1">
+                            <div className="flex items-center justify-center">
+                              <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/60 px-1.5 text-[10px] text-left font-mono opacity-90 ring-1 ring-zinc-100">
+                                <div className="text-zinc-500 truncate">เหลือ: <span className="text-zinc-700 font-bold">{item.history?.cycle_1_stock !== null ? `${item.history?.cycle_1_stock} ${unitStr}` : '-'}</span></div>
+                                <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-emerald-600 font-black">{item.history?.cycle_1_order !== null ? `+${item.history?.cycle_1_order} ${unitStr}` : '-'}</span></div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* คงเหลือ */}
                           <td className="py-3 px-2">
                             <div className="flex items-center justify-center">
-                              {/* กรอบ Input คงเหลือเปลี่ยนเป็นสีแดงเมื่อต่ำกว่าเกณฑ์ความปลอดภัย */}
-                              <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 focus-within:border-black transition-all
-            ${hasInputtedStock && isBelowSafety ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200'}`}>
+                              <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 focus-within:border-black transition-all ${hasInputtedStock && isBelowSafety ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200'}`}>
                                 <input
                                   type="text"
                                   inputMode="decimal"
@@ -282,12 +325,13 @@ export default function OrderPage() {
                                   className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent"
                                 />
                                 <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
-                                  {item.unit?.unit_name || 'หน่วย'}
+                                  {unitStr}
                                 </span>
                               </div>
                             </div>
                           </td>
 
+                          {/* สั่งเพิ่ม */}
                           <td className="py-3 px-2">
                             <div className="flex items-center justify-center">
                               <div className="flex items-center w-24 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
@@ -300,15 +344,14 @@ export default function OrderPage() {
                                   className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent"
                                 />
                                 <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
-                                  {item.unit?.unit_name || 'หน่วย'}
+                                  {unitStr}
                                 </span>
                               </div>
                             </div>
                           </td>
-
                         </tr>
                       );
-                    })} {/* 🚀 แก้วงเล็บปิดตรงจุดนี้เรียบร้อย ไหลลื่นแน่นอนครับ */}
+                    })}
                   </tbody>
                 </table>
               </div>
