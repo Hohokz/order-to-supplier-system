@@ -89,7 +89,7 @@ export const inventoryRepository = {
 
     // ปรับการรับค่าให้ตรงกับรูปแบบที่ service ใช้งาน
     const { rows } = await query<Inventory>(sql);
-    return rows; 
+    return rows;
   },
 
   async existWithUnit(id: string) {
@@ -119,16 +119,19 @@ export const inventoryRepository = {
     return count > 0;
   },
 
-  async getNextSeq(): Promise<number> {
-    // ล็อคตารางไว้เพื่อป้องกันคนอื่นบันทึกแทรกระหว่างกำลังหาเลข
+  async getNextSeq(supplier_id: string): Promise<number> {
+    // ใช้ WHERE เพื่อกรองเอา MAX เฉพาะของซัพพลายเออร์รายนั้นๆ
+    // และใช้ FOR UPDATE เพื่อล็อคเฉพาะแถวของซัพพลายเออร์นี้
     const { rows } = await query<{ max_seq: number }>(
-      'SELECT MAX(seq) as max_seq FROM inventories FOR UPDATE'
+      'SELECT MAX(seq) as max_seq FROM inventories WHERE supplier_id = $1 FOR UPDATE',
+      [supplier_id]
     );
+
     return (rows[0]?.max_seq ?? 0) + 1;
   },
 
   async create(data: CreateInventoryPayload): Promise<Inventory> {
-    const nextSeq = await this.getNextSeq();
+    const nextSeq = await this.getNextSeq(data.supplier_id);
     const now = new Date();
     const sql = `
     WITH inserted AS (
@@ -214,18 +217,22 @@ export const inventoryRepository = {
   },
 
   async delete(id: string): Promise<boolean> {
-    // 1. หาเลข seq ของตัวที่จะลบก่อน
+    // 1. หาข้อมูลของตัวที่จะลบ เพื่อเอา seq และ supplier_id
     const itemToDelete = await this.findById(id);
     if (!itemToDelete) return false;
 
-    // 2. เริ่ม Transaction
     await query('BEGIN');
     try {
       // 3. ลบรายการ
       await query('DELETE FROM inventories WHERE id = $1', [id]);
 
-      // 4. Update รายการที่เหลือให้เลื่อนเลขขึ้นมา (อันนี้คือส่วนที่ "แก้เยอะ" ครับ)
-      await query('UPDATE inventories SET seq = seq - 1 WHERE seq > $1', [itemToDelete.seq]);
+      // 4. ปรับ seq เฉพาะรายการที่ "ซัพพลายเออร์เดียวกัน" และ "มีเลข seq มากกว่าตัวที่ถูกลบ"
+      await query(
+        `UPDATE inventories 
+       SET seq = seq - 1 
+       WHERE supplier_id = $1 AND seq > $2`,
+        [itemToDelete.supplier_id, itemToDelete.seq]
+      );
 
       await query('COMMIT');
       return true;

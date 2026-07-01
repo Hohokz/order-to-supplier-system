@@ -17,6 +17,7 @@ const UnitSchema = z.object({
 
 export const GetInventoryByIdResponse = z.object({
   id: z.string().uuid(),
+  seq: z.number(),
   inventory_name: z.string(),
   inventory_quantity: z.number(),
   unit_price: z.number(),

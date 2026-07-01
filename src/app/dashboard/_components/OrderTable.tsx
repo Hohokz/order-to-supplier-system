@@ -25,7 +25,7 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
     );
   }
 
-   return (
+  return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse text-sm">
         <thead>
@@ -47,8 +47,12 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
             }, {} as Record<string, typeof order.items>);
 
             // ✅ เช็คสถานะแบบแม่นยำ (ถ้าทุก item ในทุกกลุ่มเป็น APPROVED = อนุมัติรวม)
-            const isAllApproved = Object.values(groupedItems).every(items => 
-              items.every(item => item.approve_status === 'APPROVED')
+            const isAllApproved = Object.values(groupedItems).every(items =>
+              items.every(item =>
+                // เงื่อนไข: ถ้าเป็น NOT_ORDERED ให้ถือว่าผ่าน (true) 
+                // หรือถ้าสถานะเป็น APPROVED ก็ถือว่าผ่าน (true)
+                item.approve_status === 'NOT_ORDERED' || item.approve_status === 'APPROVED'
+              )
             );
 
             return (
@@ -71,8 +75,8 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
                 <td className="py-4 px-2 text-zinc-600 font-semibold">{order.created_by}</td>
                 <td className="py-4 px-2 text-right">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black border font-mono transition-all
-                    ${isAllApproved 
-                      ? 'bg-zinc-900 text-white border-black' 
+                    ${isAllApproved
+                      ? 'bg-zinc-900 text-white border-black'
                       : 'bg-white text-zinc-400 border-zinc-200'
                     }`}>
                     {isAllApproved ? 'APPROVED' : 'PENDING'}

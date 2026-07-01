@@ -94,17 +94,30 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
         <div className="bg-zinc-50/20 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
           {supplierNames.map((name) => {
             const isActive = activeSupplier === name;
-            const isThisTabApproved = groupedItems[name]?.every(item => item.approve_status === 'APPROVED');
+
+            // 1. ดึงเฉพาะ items ของซัพพลายเออร์เจ้านี้
+            const itemsForThisSupplier = groupedItems[name] || [];
+
+            // 2. กรองเฉพาะรายการที่ต้องสนใจ (ไม่เท่ากับ NOT_ORDERED)
+            const relevantItems = itemsForThisSupplier.filter(item => item.approve_status !== 'NOT_ORDERED');
+
+            // 3. ถ้าไม่มีรายการไหนที่ต้องอนุมัติเลย (มีแต่ NOT_ORDERED) ให้ถือว่าผ่าน (หรือปรับตามใจชอบ)
+            // แต่ถ้ามีรายการที่ต้องสน ให้เช็คว่าทุกตัวเป็น APPROVED
+            const isThisTabApproved = relevantItems.length > 0 &&
+              relevantItems.every(item => item.approve_status === 'APPROVED');
+
             return (
               <button
                 key={name}
                 type="button"
                 onClick={() => setActiveSupplier(name)}
                 className={`px-5 py-3.5 text-xs font-bold whitespace-nowrap min-w-[140px] transition-all focus:outline-none flex items-center justify-center gap-1.5
-                  ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black' : 'text-zinc-400 hover:bg-zinc-50'}`}
+        ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black' : 'text-zinc-400 hover:bg-zinc-50'}`}
               >
                 <span>{name}</span>
-                {isThisTabApproved && <span className="text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full font-black scale-90">✓</span>}
+                {isThisTabApproved && (
+                  <span className="text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full font-black scale-90">✓</span>
+                )}
               </button>
             );
           })}
