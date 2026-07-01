@@ -16,6 +16,7 @@ export interface Inventory extends QueryResultRow {
     supplier_id: string;
     unit_id: string;
     safety_quantity: number;
+    seq: number;
 
     supplier: { id: string; supplier_name: string };
     unit: { id: string; unit_name: string };

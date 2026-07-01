@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react'; // 🚀 1. เพิ่มการ Import Suspense มาจาก React
+import React, { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -11,7 +11,16 @@ import { Sidebar } from './_components/Sidebar';
 import { OrderTable } from './_components/OrderTable';
 import { OrderModal } from './_components/OrderModal';
 
-// 🚀 2. เปลี่ยนชื่อฟังก์ชันเนื้อหาหลักจาก DashboardPage ให้กลายเป็น DashboardContentแทน
+// 🚀 1. สร้าง Type สำหรับประวัติ
+type OrderHistory = {
+  cycle_1_stock: number | null;
+  cycle_1_order: number | null;
+  cycle_2_stock: number | null;
+  cycle_2_order: number | null;
+  cycle_3_stock: number | null;
+  cycle_3_order: number | null;
+};
+
 function DashboardContent() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -93,7 +102,6 @@ function DashboardContent() {
   useEffect(() => {
     if (!isAuthLoading) {
       if (!isAuthenticated) {
-        // 🚀 ดึงเลขที่กดมาจากไลน์ แล้วแปะท้ายส่งไปหน้า Login ด้วยครับ
         const openOrderId = searchParams.get('openOrder') || '';
         router.push(`/login${openOrderId ? `?openOrder=${openOrderId}` : ''}`);
       } else if (user?.user_role === 'OBSERVER') {
@@ -120,7 +128,14 @@ function DashboardContent() {
           }
         };
 
-        const result = await apiClient.post<ApiResponse>('/api/dashboard/all', payload);
+        // 🚀 2. ดึงข้อมูลประวัติและข้อมูลออเดอร์พร้อมกัน
+        const [result, historyResult] = await Promise.all([
+          apiClient.post<ApiResponse>('/api/dashboard/all', payload),
+          apiClient.get<Record<string, OrderHistory>>('/api/orders/history')
+            .catch(() => ({} as Record<string, OrderHistory>))
+        ]);
+
+        const historyMap = historyResult || {};
 
         const sorted = result.data.sort((a, b) => {
           const dateA = new Date(a.order_date || a.created_date).getTime();
@@ -128,7 +143,20 @@ function DashboardContent() {
           return dateB - dateA;
         });
 
-        setOrders(sorted);
+        // 🚀 3. แนบข้อมูลประวัติเข้าไปในแต่ละ Item
+        const ordersWithHistory = sorted.map(order => ({
+          ...order,
+          items: order.items.map(item => ({
+            ...item,
+            history: historyMap[item.inventory_id] || {
+              cycle_1_stock: null, cycle_1_order: null,
+              cycle_2_stock: null, cycle_2_order: null,
+              cycle_3_stock: null, cycle_3_order: null
+            }
+          }))
+        }));
+
+        setOrders(ordersWithHistory as OrderWithItems[]);
         setTotalPages(result.totalPages || 1);
         setTotalItems(result.total || 0);
       } catch (err: unknown) {
@@ -288,7 +316,6 @@ function DashboardContent() {
   );
 }
 
-// 🚀 3. ใช้ฟังก์ชันหลักทำหน้าที่ครอบด้วย <Suspense> เพื่อสยบบั๊กไคลเอนต์ค้างตอนเปลี่ยนหน้า
 export default function DashboardPage() {
   return (
     <Suspense fallback={
@@ -302,33 +329,8 @@ export default function DashboardPage() {
 }
 
 const mockApiResponse: ApiResponse = {
-  data: [
-    {
-      id: 4,
-      signature: "Apiwat",
-      created_date: "2026-06-17T08:32:35.318Z",
-      created_by: "pi",
-      order_date: null,
-      items: [
-        {
-          id: "58b22995-ee3c-4537-a194-b392bfaee481",
-          inventory_id: "inv-a101",
-          inventory_name: "วัตถุดิบ A",
-          supplier_id: "sup-a001",
-          supplier_name: "บริษัท เอ จำกัด",
-          unit: "KG",
-          unit_name: "กิโลกรัม",
-          quantity: 5,
-          order_quantity: 5,
-          approve_status: "PENDING",
-          approve_by: null,
-          approve_date: null,
-          safety_quantity: 1
-        }
-      ]
-    }
-  ],
-  total: 1,
+  data: [],
+  total: 0,
   page: 1,
   limit: 10,
   totalPages: 1

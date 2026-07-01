@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { usersService } from './user.service';
 import { createProfileSchema } from './dto/create-user.dto';
-import { updateProfileSchema } from './dto/update-profile.dto';
+import { UpdateUserDto } from './dto/update-profile.dto';
 import { changePasswordSchema } from './dto/change-password.dto';
 import { updateRoleSchema } from './dto/update-user-role.dto';
 import { listUsersQuerySchema } from './dto/list-users.dto';
@@ -30,6 +30,18 @@ export const usersController = {
         }
     },
 
+    async getByUsername(req: NextRequest, params: { username: string }) {
+        try {
+            const auth = requireAuth(req);
+            requireRole(auth, 'APPROVER');
+
+            const profile = await usersService.getUserByUsername(params.username);
+            return NextResponse.json(profile);
+        } catch (err) {
+            return handleError(err);
+        }
+    },
+
     async create(req: NextRequest) {
         try {
             const auth = requireAuth(req);
@@ -47,7 +59,7 @@ export const usersController = {
     async updateMe(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            const body = updateProfileSchema.parse(await req.json());
+            const body = UpdateUserDto.parse(await req.json());
             const updated = await usersService.updateProfile(auth.sub, body);
             return NextResponse.json(updated);
         } catch (err) {

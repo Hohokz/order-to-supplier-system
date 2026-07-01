@@ -3,6 +3,7 @@ export interface SupplierInventoryRow {
   inventory_name: string;
   supplier_id: string;
   supplier_name: string;
+  seq: number;
   unit: string;
   unit_name: string | null;
   quantity: number;
@@ -11,6 +12,7 @@ export interface SupplierInventoryRow {
 
 export interface OrderItem {
   id: string;
+  seq: number;
   inventory_id: string;
   inventory_name: string;
   supplier_id: string;

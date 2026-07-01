@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import { userRepository } from './user.repository';
 import { authRepository } from '../auth/auth.repository';
 import { toSafeUser, SafeUser, UserRole } from './entities/user.entities';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateProfileInput } from './dto/update-profile.dto';
 import { CreateProfileDto } from './dto/create-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import {
@@ -39,6 +39,14 @@ export const usersService = {
     return toSafeUser(user);
   },
 
+  async getUserByUsername(username: string): Promise<SafeUser> {
+    const user = await userRepository.findByUsername(username);
+    if (!user) {
+      throw new UserNotFoundError();
+    }
+    return toSafeUser(user);
+  },
+
   async createUser(data: CreateProfileDto): Promise<SafeUser> {
     const existing = await userRepository.findByUsername(data.username);
     if (existing) {
@@ -58,7 +66,7 @@ export const usersService = {
     return toSafeUser(user);
   },
 
-  async updateProfile(userId: string, data: UpdateProfileDto): Promise<SafeUser> {
+  async updateProfile(userId: string, data: UpdateProfileInput): Promise<SafeUser> {
     if (data.username) {
       const existing = await userRepository.findByUsername(data.username);
       if (existing && existing.id !== userId) {

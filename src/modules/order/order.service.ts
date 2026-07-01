@@ -118,8 +118,6 @@ export const orderService = {
 
       if (approvedItems.length > 0) {
         // ดึงชื่อซัพพลายเออร์จากแถวแรกขึ้นมาแปะหัวข้อบิล
-        const supplierName = approvedItems[0].supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
-
         // 🔄 วนลูปเพื่อทำการรัน No. (1, 2, 3...) และผูกชื่อสินค้ากับจำนวนทศนิยมส่ง
         let itemsText = '';
         approvedItems.forEach((item, index) => {
@@ -131,7 +129,7 @@ export const orderService = {
 
         if (approverEntity && approverEntity.line_id) {
           // ประกอบร่างข้อความแจ้งเตือนรูปแบบใหม่
-          const messageText = `✅ คุณได้ทำการอนุมัติใบสั่งซื้อเรียบร้อยแล้ว!\n\nเลขที่ออเดอร์: #${orderId}\n🏢 ซัพพลายเออร์: ${supplierName}\n👤 ผู้อนุมัติรายการ: ${approvedBy}\n\n📋 รายการสินค้าที่จัดส่ง:\n${itemsText.trim()}\n\nสถานะ: APPROVED (ตัดยอดสต็อกในคลังสำเร็จ)`;
+          const messageText = `รายการสินค้าที่จัดส่ง:\n${itemsText.trim()}\n\n`;
 
           // ยิงข้อความตรงเข้าไลน์ทันที
           await sendLineMessage(approverEntity.line_id, messageText);

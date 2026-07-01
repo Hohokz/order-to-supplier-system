@@ -50,7 +50,7 @@ export const inventoryRepository = {
     LEFT JOIN suppliers s ON i.supplier_id = s.id
     LEFT JOIN units u ON i.unit_id = u.id
     ${whereSql}
-    ORDER BY i.created_date DESC 
+    ORDER BY i.seq ASC
     LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}
   `;
 
@@ -76,18 +76,20 @@ export const inventoryRepository = {
   },
 
   async masterInventories() {
-    const sql = `SELECT i.*, 
-           json_build_object('id', s.id, 'supplier_name', s.supplier_name) as supplier,
-           json_build_object('id', u.id, 'unit_name', u.unit_name) as unit
-    FROM inventories i
-    LEFT JOIN suppliers s ON i.supplier_id = s.id
-    LEFT JOIN units u ON i.unit_id = u.id
-    where i.status = 'ACTIVE';`
+    const sql = `
+      SELECT i.*, 
+             json_build_object('id', s.id, 'supplier_name', s.supplier_name) as supplier,
+             json_build_object('id', u.id, 'unit_name', u.unit_name) as unit
+      FROM inventories i
+      LEFT JOIN suppliers s ON i.supplier_id = s.id
+      LEFT JOIN units u ON i.unit_id = u.id
+      WHERE i.status = 'ACTIVE'
+      ORDER BY i.seq ASC; -- 🚀 เพิ่มตรงนี้ครับเพื่อให้เรียงตามเลขที่เราตั้งใจไว้
+    `;
 
-    const dataResult = await Promise.all([
-      query<Inventory>(sql)
-    ]);
-    return dataResult;
+    // ปรับการรับค่าให้ตรงกับรูปแบบที่ service ใช้งาน
+    const { rows } = await query<Inventory>(sql);
+    return rows; 
   },
 
   async existWithUnit(id: string) {
@@ -117,15 +119,24 @@ export const inventoryRepository = {
     return count > 0;
   },
 
+  async getNextSeq(): Promise<number> {
+    // ล็อคตารางไว้เพื่อป้องกันคนอื่นบันทึกแทรกระหว่างกำลังหาเลข
+    const { rows } = await query<{ max_seq: number }>(
+      'SELECT MAX(seq) as max_seq FROM inventories FOR UPDATE'
+    );
+    return (rows[0]?.max_seq ?? 0) + 1;
+  },
+
   async create(data: CreateInventoryPayload): Promise<Inventory> {
+    const nextSeq = await this.getNextSeq();
     const now = new Date();
     const sql = `
     WITH inserted AS (
       INSERT INTO inventories (
-        inventory_name, inventory_quantity, unit_price, status, 
+        seq,inventory_name, inventory_quantity, unit_price, status, 
         supplier_id, unit_id, created_by, created_date, safety_quantity
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     )
     SELECT i.*, 
@@ -137,6 +148,7 @@ export const inventoryRepository = {
   `;
 
     const { rows } = await query<Inventory>(sql, [
+      nextSeq,
       data.inventory_name,
       data.inventory_quantity,
       data.unit_price,
@@ -202,7 +214,24 @@ export const inventoryRepository = {
   },
 
   async delete(id: string): Promise<boolean> {
-    const { rowCount } = await query(`DELETE FROM inventories WHERE id = $1`, [id]);
-    return (rowCount ?? 0) > 0;
+    // 1. หาเลข seq ของตัวที่จะลบก่อน
+    const itemToDelete = await this.findById(id);
+    if (!itemToDelete) return false;
+
+    // 2. เริ่ม Transaction
+    await query('BEGIN');
+    try {
+      // 3. ลบรายการ
+      await query('DELETE FROM inventories WHERE id = $1', [id]);
+
+      // 4. Update รายการที่เหลือให้เลื่อนเลขขึ้นมา (อันนี้คือส่วนที่ "แก้เยอะ" ครับ)
+      await query('UPDATE inventories SET seq = seq - 1 WHERE seq > $1', [itemToDelete.seq]);
+
+      await query('COMMIT');
+      return true;
+    } catch (e) {
+      await query('ROLLBACK');
+      throw e;
+    }
   }
 };

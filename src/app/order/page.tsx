@@ -18,6 +18,7 @@ type OrderHistory = {
 };
 
 type FormItemType = MasterInventoryRow & {
+  seq: number; // เพิ่มเข้าไปตรงนี้เลยครับ
   quantity: number | string;
   order_quantity: number | string;
   safety_quantity?: number | string;
@@ -31,7 +32,12 @@ export default function OrderPage() {
 
   const [items, setItems] = useState<FormItemType[]>([]);
   const [signature, setSignature] = useState<string>('');
+  const [deliveryWhen, setDeliveryWhen] = useState<string>('');
   const [activeSupplier, setActiveSupplier] = useState<string>('');
+
+  // 🚀 เพิ่ม State สำหรับเก็บว่าซัพพลายเออร์เจ้าไหนถูกข้ามบ้าง
+  const [skippedSuppliers, setSkippedSuppliers] = useState<string[]>([]);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -49,23 +55,38 @@ export default function OrderPage() {
       try {
         setIsLoading(true);
         const [masterResult, historyResult] = await Promise.all([
-          apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {}),
+          apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {}), // ลองปรับ type เป็น any ก่อน
           apiClient.get<Record<string, OrderHistory>>('/api/orders/history')
         ]);
-        
-        const targetRows = masterResult[0]?.rows || [];
+
+        const targetRows = Array.isArray(masterResult) ? masterResult : [];
         const historyMap = historyResult || {};
 
-        const itemsWithFormState: FormItemType[] = targetRows.map(row => ({
-          ...row,
-          quantity: '',
-          order_quantity: '',
-          history: historyMap[row.id] || {
-            cycle_1_stock: null, cycle_1_order: null,
-            cycle_2_stock: null, cycle_2_order: null,
-            cycle_3_stock: null, cycle_3_order: null
-          }
-        }));
+        // 3. Map ข้อมูลให้ตรงกับ FormItemType
+        const itemsWithFormState: FormItemType[] = targetRows.map((row) => {
+          // แก้ไขตรงนี้ครับ
+          const inventoryRow = row as unknown as MasterInventoryRow;
+
+          return {
+            id: inventoryRow.id,
+            inventory_name: inventoryRow.inventory_name,
+            inventory_quantity: inventoryRow.inventory_quantity,
+            unit_price: inventoryRow.unit_price,
+            status: inventoryRow.status,
+            supplier: inventoryRow.supplier,
+            unit: inventoryRow.unit,
+            safety_quantity: inventoryRow.safety_quantity,
+            seq: inventoryRow.seq,
+            created_date: inventoryRow.created_date,
+            quantity: '',
+            order_quantity: '',
+            history: historyMap[inventoryRow.id] || {
+              cycle_1_stock: null, cycle_1_order: null,
+              cycle_2_stock: null, cycle_2_order: null,
+              cycle_3_stock: null, cycle_3_order: null
+            }
+          };
+        });
 
         setItems(itemsWithFormState);
       } catch (err: unknown) {
@@ -111,6 +132,27 @@ export default function OrderPage() {
     );
   };
 
+  // 🚀 ฟังก์ชันสำหรับสลับสถานะข้าม/ไม่ข้าม
+  const handleToggleSkipSupplier = () => {
+    if (skippedSuppliers.includes(activeSupplier)) {
+      // กรณีกดซ้ำ (ต้องการเปิดใหม่)
+      setSkippedSuppliers(prev => prev.filter(s => s !== activeSupplier));
+    } else {
+      // กรณีต้องการข้าม
+      setSkippedSuppliers(prev => [...prev, activeSupplier]);
+      // ล้างค่าข้อมูลของซัพพลายเออร์เจ้านี้
+      setItems((prev) =>
+        prev.map((item) => {
+          const supplierName = item.supplier?.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
+          if (supplierName === activeSupplier) {
+            return { ...item, quantity: '', order_quantity: '' };
+          }
+          return item;
+        })
+      );
+    }
+  };
+
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
@@ -123,6 +165,10 @@ export default function OrderPage() {
     }
 
     const filteredItems = items.filter((item) => {
+      const supplierName = item.supplier?.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
+      // 🚀 เพิ่มเงื่อนไขเช็คว่าห้ามเอา Supplier ที่อยู่ใน skippedSuppliers มาด้วย
+      if (skippedSuppliers.includes(supplierName)) return false;
+
       const orderNum = Number(item.order_quantity);
       return !isNaN(orderNum) && orderNum > 0;
     });
@@ -155,7 +201,7 @@ export default function OrderPage() {
           inventory_id: item.id,
           quantity: Number(item.quantity),
           order_quantity: Number(item.order_quantity),
-          delivery_when: 'IMMEDIATE'
+          delivery_when: deliveryWhen.trim() || 'IMMEDIATE'
         }))
       };
 
@@ -165,6 +211,8 @@ export default function OrderPage() {
       setMessage({ type: 'success', text: successText });
       showSuccess(successText);
       setSignature('');
+      setDeliveryWhen('IMMEDIATE');
+      setSkippedSuppliers([]); // รีเซ็ตการข้ามทั้งหมดเมื่อส่งสำเร็จ
       setItems(prev => prev.map(item => ({ ...item, quantity: '', order_quantity: '' })));
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
@@ -186,6 +234,9 @@ export default function OrderPage() {
   if (!isAuthenticated) return null;
 
   const currentItems = groupedItems[activeSupplier] || [];
+
+  // 🚀 เช็คว่าแท็บปัจจุบันถูกข้ามอยู่หรือไม่
+  const isCurrentSkipped = skippedSuppliers.includes(activeSupplier);
 
   return (
     <div className="flex min-h-screen bg-zinc-50 text-zinc-900 font-sans">
@@ -221,15 +272,20 @@ export default function OrderPage() {
             <div className="bg-zinc-50/50 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
               {supplierNames.map((name) => {
                 const isActive = activeSupplier === name;
+                const isSkipped = skippedSuppliers.includes(name);
+
                 return (
                   <button
                     key={name}
                     type="button"
                     onClick={() => setActiveSupplier(name)}
-                    className={`px-6 py-4 text-sm font-bold text-center whitespace-nowrap min-w-[140px] transition-all focus:outline-none
-                      ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black' : 'text-zinc-400 hover:bg-zinc-50'}`}
+                    className={`px-6 py-4 text-sm font-bold text-center whitespace-nowrap min-w-[140px] transition-all focus:outline-none flex flex-col items-center gap-0.5
+                      ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black' : 'text-zinc-400 hover:bg-zinc-50'}
+                      ${isSkipped ? 'opacity-50' : ''}`}
                   >
-                    {name}
+                    <span>{name}</span>
+                    {/* ขีดฆ่าหรือขึ้นป้ายบอกว่าข้ามเจ้านี้ */}
+                    {isSkipped && <span className="text-[9px] bg-zinc-200 text-zinc-600 px-1.5 rounded-full font-medium">ไม่ได้สั่งเจ้านี้</span>}
                   </button>
                 );
               })}
@@ -237,7 +293,8 @@ export default function OrderPage() {
 
             <div className="p-2 md:p-6">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
+                {/* 🚀 เพิ่มคลาส disable ตารางเมื่อถูกข้าม */}
+                <table className={`w-full text-left border-collapse text-sm transition-all duration-300 ${isCurrentSkipped ? 'opacity-40 pointer-events-none grayscale select-none' : ''}`}>
                   <thead>
                     <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
                       <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
@@ -249,6 +306,13 @@ export default function OrderPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-zinc-800">
+                    {currentItems.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center text-zinc-400 text-xs">
+                          ไม่พบรายการสินค้าสำหรับซัพพลายเออร์เจ้านี้
+                        </td>
+                      </tr>
+                    )}
                     {currentItems.map((item) => {
                       const currentCount = Number(item.quantity);
 
@@ -260,7 +324,7 @@ export default function OrderPage() {
                       const isBelowSafety = !isNaN(currentCount) && currentCount < safetyLimitNum;
 
                       let rowBgClass = "hover:bg-zinc-50/50";
-                      if (hasInputtedStock && isBelowSafety) {
+                      if (hasInputtedStock && isBelowSafety && !isCurrentSkipped) {
                         rowBgClass = "bg-red-50/60 hover:bg-red-50/80 text-red-950 border-red-100 transition-colors";
                       }
 
@@ -275,7 +339,7 @@ export default function OrderPage() {
                             <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
                               <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
                               {safetyLimitNum > 0 && (
-                                <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${isBelowSafety ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
                                   Min: {safetyLimitNum}
                                 </span>
                               )}
@@ -315,14 +379,15 @@ export default function OrderPage() {
                           {/* คงเหลือ */}
                           <td className="py-3 px-2">
                             <div className="flex items-center justify-center">
-                              <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 focus-within:border-black transition-all ${hasInputtedStock && isBelowSafety ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200'}`}>
+                              <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
                                 <input
                                   type="text"
                                   inputMode="decimal"
                                   placeholder="0"
                                   value={item.quantity}
                                   onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
-                                  className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent"
+                                  disabled={isCurrentSkipped}
+                                  className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent disabled:bg-transparent"
                                 />
                                 <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
                                   {unitStr}
@@ -341,7 +406,8 @@ export default function OrderPage() {
                                   placeholder="0"
                                   value={item.order_quantity}
                                   onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
-                                  className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent"
+                                  disabled={isCurrentSkipped}
+                                  className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent disabled:bg-transparent"
                                 />
                                 <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
                                   {unitStr}
@@ -357,28 +423,57 @@ export default function OrderPage() {
               </div>
             </div>
 
-            <div className="p-4 md:p-5 bg-zinc-50 border-t border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:max-w-md">
-                <label className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-wider whitespace-nowrap">
-                  ลงนาม (Signature) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="เช่น Apiwat.P"
-                  className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-full px-4 py-2 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
-                />
+            <div className="p-4 md:p-5 bg-zinc-50 border-t border-zinc-200 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+
+              <div className="flex flex-col sm:flex-row gap-4 w-full xl:max-w-2xl">
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                    ลงนาม (Signature) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    placeholder=""
+                    className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                    กำหนดส่ง (Delivery)
+                  </label>
+                  <input
+                    type="text"
+                    value={deliveryWhen}
+                    onChange={(e) => setDeliveryWhen(e.target.value)}
+                    placeholder=""
+                    className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
+                  />
+                </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-black text-white text-xs font-black shadow-sm hover:bg-zinc-800 active:scale-[0.98] disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed transition-all w-full sm:w-auto"
-              >
-                {isSubmitting ? 'กำลังบันทึก...' : 'ส่งใบจัดทำคำสั่งซื้อย่อย'}
-              </button>
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full xl:w-auto">
+                <button
+                  type="button"
+                  onClick={handleToggleSkipSupplier}
+                  disabled={isSubmitting}
+                  className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all w-full sm:w-auto
+                    ${isCurrentSkipped
+                      ? 'bg-zinc-900 border-black text-white hover:bg-zinc-800 shadow-sm'
+                      : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100 hover:text-black'}`}
+                >
+                  {isCurrentSkipped ? '↺ เปิดสั่งเจ้านี้ใหม่' : '✕ ข้ามเจ้านี้ (ไม่สั่ง)'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-black text-white text-xs font-black shadow-sm hover:bg-zinc-800 active:scale-[0.98] disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed transition-all w-full sm:w-auto whitespace-nowrap"
+                >
+                  {isSubmitting ? 'กำลังบันทึก...' : 'ส่งใบจัดทำคำสั่งซื้อรวม'}
+                </button>
+              </div>
             </div>
 
           </div>

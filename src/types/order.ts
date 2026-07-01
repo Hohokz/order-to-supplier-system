@@ -12,6 +12,7 @@ export interface OrderEntity {
 // 2. โครงสร้างชิ้นส่วนย่อยตัวลูก order_items (ย้ายระบบอนุมัติและเพิ่มไอดีซัพพลายเออร์)
 export interface OrderItem {
   id: string;
+  seq: number;
   inventory_id: string;
   inventory_name: string;
   supplier_id: string;   // 💡 เพิ่มเข้ามาเพื่อให้หน้าจอนำไปใช้ฟิลเตอร์แยกแท็บ และส่งยิง API อนุมัติรายซัพพลายเออร์
@@ -43,3 +44,16 @@ export interface ApiResponse {
   limit: number;
   totalPages: number;
 }
+
+export interface OrderHistory {
+  cycle_1_stock: number | null;
+  cycle_1_order: number | null;
+  cycle_2_stock: number | null;
+  cycle_2_order: number | null;
+  cycle_3_stock: number | null;
+  cycle_3_order: number | null;
+}
+
+export type OrderItemWithHistory = OrderItem & {
+  history?: OrderHistory;
+};

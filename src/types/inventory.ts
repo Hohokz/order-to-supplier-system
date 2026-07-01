@@ -12,6 +12,7 @@ export interface UnitInfo {
 
 export interface MasterInventoryRow {
   id: string;
+  seq: number;
   inventory_name: string;
   inventory_quantity: string; // รองรับ Payload ใหม่
   unit_price: string;          // รองรับ Payload ใหม่

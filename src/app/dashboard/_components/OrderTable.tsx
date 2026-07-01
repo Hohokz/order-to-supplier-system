@@ -25,11 +25,10 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
     );
   }
 
-  return (
+   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse text-sm">
         <thead>
-          {/* 💡 เปลี่ยนสีหัวข้อให้เป็นแบบใส Clean UI ไม่ใช้เทาทึบ */}
           <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase font-medium">
             <th className="py-4 px-2">วันที่สั่งซื้อ</th>
             <th className="py-4 px-2">ID / ลายเซ็นผู้จัดทำ</th>
@@ -38,36 +37,50 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100 text-xs font-medium text-zinc-700">
-          {orders.map((order) => (
-            <tr
-              key={order.id}
-              onClick={() => onOrderClick(order)}
-              className="hover:bg-zinc-50/50 cursor-pointer transition-colors"
-            >
-              <td className="py-4 px-2 font-mono text-zinc-500">
-                {new Date(order.order_date || order.created_date).toLocaleDateString('th-TH', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </td>
-              <td className="py-4 px-2 font-mono">
-                <span className="text-zinc-300 text-[10px] mr-1">#{order.id}</span>
-                <span className="font-bold text-zinc-900">{order.signature || 'N/A'}</span>
-              </td>
-              <td className="py-4 px-2 text-zinc-600 font-semibold">{order.created_by}</td>
-              <td className="py-4 px-2 text-right">
-                {/* 💡 Badge สถานะแคปซูลทรงมนกลมสมส่วน */}
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black border font-mono transition-all
-                  ${order.is_approve
-                    ? 'bg-zinc-900 text-white border-black'
-                    : 'bg-white text-zinc-400 border-zinc-200'
-                  }`}>
-                  {order.is_approve ? 'APPROVED' : 'PENDING'}
-                </span>
-              </td>
-            </tr>
-          ))}
+          {orders.map((order) => {
+            // ✅ ทำการ groupedItems ตรงนี้ในแต่ละรอบของการ map order
+            const groupedItems = order.items.reduce((acc, item) => {
+              const supplier = item.supplier_name || 'ไม่ระบุ';
+              if (!acc[supplier]) acc[supplier] = [];
+              acc[supplier].push(item);
+              return acc;
+            }, {} as Record<string, typeof order.items>);
+
+            // ✅ เช็คสถานะแบบแม่นยำ (ถ้าทุก item ในทุกกลุ่มเป็น APPROVED = อนุมัติรวม)
+            const isAllApproved = Object.values(groupedItems).every(items => 
+              items.every(item => item.approve_status === 'APPROVED')
+            );
+
+            return (
+              <tr
+                key={order.id}
+                onClick={() => onOrderClick(order)}
+                className="hover:bg-zinc-50/50 cursor-pointer transition-colors"
+              >
+                <td className="py-4 px-2 font-mono text-zinc-500">
+                  {new Date(order.order_date || order.created_date).toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </td>
+                <td className="py-4 px-2 font-mono">
+                  <span className="text-zinc-300 text-[10px] mr-1">#{order.id}</span>
+                  <span className="font-bold text-zinc-900">{order.signature || 'N/A'}</span>
+                </td>
+                <td className="py-4 px-2 text-zinc-600 font-semibold">{order.created_by}</td>
+                <td className="py-4 px-2 text-right">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black border font-mono transition-all
+                    ${isAllApproved 
+                      ? 'bg-zinc-900 text-white border-black' 
+                      : 'bg-white text-zinc-400 border-zinc-200'
+                    }`}>
+                    {isAllApproved ? 'APPROVED' : 'PENDING'}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

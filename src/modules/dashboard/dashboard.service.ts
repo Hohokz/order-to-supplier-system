@@ -13,6 +13,7 @@ export const orderDashboardService = {
         if (orders.length === 0) {
             return { data: [], total, page, limit, totalPages: 0 };
         }
+        console.log(orders)
 
         const supplierIds = Array.from(
             new Set(
@@ -28,6 +29,7 @@ export const orderDashboardService = {
             const invSql = `
         SELECT 
           inv.id as inventory_id,
+          inv.seq,
           inv.inventory_name,
           inv.supplier_id::text,
           s.supplier_name,
@@ -47,31 +49,38 @@ export const orderDashboardService = {
         // [Hydration Phase] วนลูปจับคู่เพื่อประกอบร่างไอเทม 0 ชิ้นที่ไม่ได้สั่ง
         const hydratedOrders = orders.map(order => {
             const orderItems = order.items as OrderItem[];
-            // ดึง supplier_id จากรายการที่มีอยู่จริงก่อน (ถ้า order ว่างเปล่า ให้ข้ามไป)
-            const mainSupplierId = orderItems.length > 0 ? orderItems[0].supplier_id : null;
 
-            if (!mainSupplierId) return order;
-
-            // กรองข้อมูล Master Catalog ของซัพพลายเออร์เจ้านี้มาเตรียมไว้
-            const supplierCatalog = allSupplierInventories.filter(
-                inv => inv.supplier_id === mainSupplierId
+            // 🚀 1. หา supplier_id "ทั้งหมด" ที่อยู่ในบิลนี้ (แบบไม่ซ้ำกัน)
+            const orderSupplierIds = Array.from(
+                new Set(orderItems.map(item => item.supplier_id).filter(Boolean))
             );
 
-            const fullItemsList = supplierCatalog.map((catalogItem): OrderItem => {
+            // ถ้าไม่มีสินค้าในบิลเลย ให้คืนค่าเดิมกลับไป
+            if (orderSupplierIds.length === 0) return order;
+
+            // 🚀 2. ดึง Catalog ของ "ทุกซัพพลายเออร์" ที่อยู่ในบิลนี้มาเตรียมไว้
+            const orderCatalog = allSupplierInventories.filter(
+                inv => orderSupplierIds.includes(inv.supplier_id)
+            );
+
+            // 3. ประกอบร่างไอเทมทั้งหมดที่สั่ง และไอเทม 0 ชิ้น
+            const fullItemsList = orderCatalog.map((catalogItem): OrderItem => {
                 const orderedItem = orderItems.find(
                     (oi: OrderItem) => oi.inventory_id === catalogItem.inventory_id
                 );
 
                 if (orderedItem) {
-                    // 🚀 แก้ไขจุดนี้: ผสมร่าง orderedItem เดิม เข้ากับ safety_quantity จาก catalogItem
+                    // ผสมร่าง orderedItem เดิม เข้ากับ safety_quantity จาก catalogItem
                     return {
                         ...orderedItem,
+                        seq: catalogItem.seq,
                         safety_quantity: Number(catalogItem.safety_quantity)
                     };
                 } else {
                     // กรณีไม่ได้สั่ง (NOT_ORDERED)
                     return {
                         id: `not-ordered-${catalogItem.inventory_id}`,
+                        seq: catalogItem.seq,
                         inventory_id: catalogItem.inventory_id,
                         inventory_name: catalogItem.inventory_name,
                         supplier_id: catalogItem.supplier_id,
