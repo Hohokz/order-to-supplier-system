@@ -9,7 +9,7 @@ export const unitsController = {
     async list(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const url = new URL(req.url);
             const query = listUnitsQuerySchema.parse({
@@ -26,7 +26,9 @@ export const unitsController = {
 
     async getById(req: NextRequest, params: { id: string }) {
         try {
-            requireAuth(req);
+            const auth = requireAuth(req);
+            requireRole(auth, 'APPROVER', 'OBSERVER');
+
             const unit = await unitsService.getUnit(params.id);
             return NextResponse.json(unit);
         } catch (err) {
@@ -37,7 +39,7 @@ export const unitsController = {
     async create(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = CreateUnitInput.parse(await req.json());
             const unit = await unitsService.createUnit({
@@ -53,7 +55,7 @@ export const unitsController = {
     async update(req: NextRequest, params: { id: string }) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = UpdateUnitInput.parse(await req.json());
             const updated = await unitsService.updateUnit(params.id, {
@@ -69,7 +71,7 @@ export const unitsController = {
     async delete(req: NextRequest, params: { id: string }) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             await unitsService.deleteUnit(params.id);
             return NextResponse.json({ success: true });

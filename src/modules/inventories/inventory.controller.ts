@@ -36,7 +36,9 @@ export const inventoriesController = {
 
     async getById(req: NextRequest, params: { id: string }) {
         try {
-            requireAuth(req);
+            const auth = requireAuth(req);
+            requireRole(auth, 'APPROVER', 'OBSERVER');
+
             const inventory = await inventoriesService.getInventory(params.id);
             return NextResponse.json(inventory);
         } catch (err) {
@@ -47,7 +49,7 @@ export const inventoriesController = {
     async create(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = CreateInventoryInput.parse(await req.json());
             const inventory = await inventoriesService.createInventory({
@@ -63,7 +65,7 @@ export const inventoriesController = {
     async update(req: NextRequest, params: { id: string }) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = UpdateInventoryInput.parse(await req.json());
             const updated = await inventoriesService.updateInventory(params.id, {
@@ -79,7 +81,7 @@ export const inventoriesController = {
     async delete(req: NextRequest, params: { id: string }) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             await inventoriesService.deleteInventory(params.id);
             return NextResponse.json({ success: true });

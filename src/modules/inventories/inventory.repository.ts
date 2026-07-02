@@ -1,4 +1,5 @@
-import { query } from '@/lib/db';
+import { query, pool } from '@/lib/db';
+import type { PoolClient } from 'pg';
 import type { Inventory } from './entities/inventory.entities';
 import type { CreateInventoryPayload, UpdateInventoryPayload } from './dto/input-inventory.dto';
 
@@ -84,11 +85,12 @@ export const inventoryRepository = {
       LEFT JOIN suppliers s ON i.supplier_id = s.id
       LEFT JOIN units u ON i.unit_id = u.id
       WHERE i.status = 'ACTIVE'
-      ORDER BY i.seq ASC; -- 🚀 เพิ่มตรงนี้ครับเพื่อให้เรียงตามเลขที่เราตั้งใจไว้
+      ORDER BY i.seq ASC;
     `;
 
     // ปรับการรับค่าให้ตรงกับรูปแบบที่ service ใช้งาน
     const { rows } = await query<Inventory>(sql);
+    console.log(rows);
     return rows;
   },
 
@@ -119,51 +121,63 @@ export const inventoryRepository = {
     return count > 0;
   },
 
-  async getNextSeq(supplier_id: string): Promise<number> {
-    // ใช้ WHERE เพื่อกรองเอา MAX เฉพาะของซัพพลายเออร์รายนั้นๆ
-    // และใช้ FOR UPDATE เพื่อล็อคเฉพาะแถวของซัพพลายเออร์นี้
-    const { rows } = await query<{ max_seq: number }>(
-      'SELECT MAX(seq) as max_seq FROM inventories WHERE supplier_id = $1 FOR UPDATE',
+  async getNextSeq(supplier_id: string, client: PoolClient): Promise<number> {
+    const { rows } = await client.query<{ next_seq: number }>(
+      `SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq
+     FROM (
+       SELECT seq FROM inventories WHERE supplier_id = $1 FOR UPDATE
+     ) locked_rows`,
       [supplier_id]
     );
-
-    return (rows[0]?.max_seq ?? 0) + 1;
+    return rows[0].next_seq;
   },
 
   async create(data: CreateInventoryPayload): Promise<Inventory> {
-    const nextSeq = await this.getNextSeq(data.supplier_id);
-    const now = new Date();
-    const sql = `
-    WITH inserted AS (
-      INSERT INTO inventories (
-        seq,inventory_name, inventory_quantity, unit_price, status, 
-        supplier_id, unit_id, created_by, created_date, safety_quantity
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const nextSeq = await this.getNextSeq(data.supplier_id, client);
+      const now = new Date();
+
+      const sql = `
+      WITH inserted AS (
+        INSERT INTO inventories (
+          seq, inventory_name, inventory_quantity, unit_price, status,
+          supplier_id, unit_id, created_by, created_date, safety_quantity
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *
-    )
-    SELECT i.*, 
-           json_build_object('id', s.id, 'supplier_name', s.supplier_name) as supplier,
-           json_build_object('id', u.id, 'unit_name', u.unit_name) as unit
-    FROM inserted i
-    LEFT JOIN suppliers s ON i.supplier_id = s.id
-    LEFT JOIN units u ON i.unit_id = u.id
-  `;
+      SELECT i.*,
+             json_build_object('id', s.id, 'supplier_name', s.supplier_name) as supplier,
+             json_build_object('id', u.id, 'unit_name', u.unit_name) as unit
+      FROM inserted i
+      LEFT JOIN suppliers s ON i.supplier_id = s.id
+      LEFT JOIN units u ON i.unit_id = u.id
+    `;
 
-    const { rows } = await query<Inventory>(sql, [
-      nextSeq,
-      data.inventory_name,
-      data.inventory_quantity,
-      data.unit_price,
-      data.status ?? 'ACTIVE',
-      data.supplier_id,
-      data.unit_id,
-      data.createdBy,
-      now,
-      data.safety_quantity
-    ]);
+      const { rows } = await client.query<Inventory>(sql, [
+        nextSeq,
+        data.inventory_name,
+        data.inventory_quantity,
+        data.unit_price,
+        data.status ?? 'ACTIVE',
+        data.supplier_id,
+        data.unit_id,
+        data.createdBy,
+        now,
+        data.safety_quantity
+      ]);
 
-    return rows[0];
+      await client.query('COMMIT');
+      return rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async update(id: string, data: UpdateInventoryPayload): Promise<Inventory | null> {
@@ -217,28 +231,29 @@ export const inventoryRepository = {
   },
 
   async delete(id: string): Promise<boolean> {
-    // 1. หาข้อมูลของตัวที่จะลบ เพื่อเอา seq และ supplier_id
     const itemToDelete = await this.findById(id);
     if (!itemToDelete) return false;
 
-    await query('BEGIN');
+    const client = await pool.connect();
     try {
-      // 3. ลบรายการ
-      await query('DELETE FROM inventories WHERE id = $1', [id]);
+      await client.query('BEGIN');
 
-      // 4. ปรับ seq เฉพาะรายการที่ "ซัพพลายเออร์เดียวกัน" และ "มีเลข seq มากกว่าตัวที่ถูกลบ"
-      await query(
+      await client.query('DELETE FROM inventories WHERE id = $1', [id]);
+
+      await client.query(
         `UPDATE inventories 
        SET seq = seq - 1 
        WHERE supplier_id = $1 AND seq > $2`,
         [itemToDelete.supplier_id, itemToDelete.seq]
       );
 
-      await query('COMMIT');
+      await client.query('COMMIT');
       return true;
     } catch (e) {
-      await query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw e;
+    } finally {
+      client.release();
     }
   }
 };

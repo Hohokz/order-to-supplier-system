@@ -7,6 +7,7 @@ import { useModal } from '@/context/ModalContext';
 
 const initialFormData = {
   id: '',
+  seq: '',
   inventory_name: '',
   inventory_quantity: '',
   unit_price: '',
@@ -31,8 +32,8 @@ export function InventoryTab() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {});
-      setData(res[0]?.rows || []);
+      const res = await apiClient.post<MasterInventoryRow[]>('/api/inventories/master', {});
+      setData(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Error fetching inventory master:', err);
       const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
@@ -41,7 +42,6 @@ export function InventoryTab() {
       setIsLoading(false);
     }
   }, [showError]);
-
   // ดึงข้อมูลตัวเลือก (Units & Suppliers) มาป้อนลง Dropdown Select
   const fetchMetadata = useCallback(async () => {
     try {
@@ -71,6 +71,7 @@ export function InventoryTab() {
   const handleOpenEdit = (item: MasterInventoryRow) => {
     setFormData({
       id: item.id,
+      seq: item.seq?.toString() || '0',
       inventory_name: item.inventory_name,
       inventory_quantity: item.inventory_quantity?.toString() || '0',
       unit_price: item.unit_price?.toString() || '0',
@@ -90,6 +91,7 @@ export function InventoryTab() {
       const payload = {
         inventory_name: formData.inventory_name,
         inventory_quantity: Number(formData.inventory_quantity || 0),
+        seq: Number(formData.seq || 0),
         unit_price: Number(formData.unit_price || 0),
         safety_quantity: Number(formData.safety_quantity || 0),
         unit_id: formData.unit_id,

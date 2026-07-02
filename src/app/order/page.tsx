@@ -8,6 +8,14 @@ import { useModal } from '@/context/ModalContext';
 import { Sidebar } from '../dashboard/_components/Sidebar';
 import { MasterInventoryRow, MasterInventoryResponse } from '@/types/inventory';
 
+// 🚀 Master data management components (reused from the master-data dashboard page)
+// NOTE: adjust this path if your actual folder structure differs
+import { InventoryTab } from '@/app/master-data/ _components/InventoryTab';
+import { SupplierTab } from '@/app/master-data/ _components/SupplierTab';
+import { UnitTab } from '@/app/master-data/ _components/UnitTab';
+// 🚀 ไม่ import UserTab ในหน้านี้ เพราะผู้ใช้หน้า Order เป็น OBSERVER เท่านั้น
+// ห้ามให้เข้าถึงการจัดการสิทธิ์ผู้ใช้งานจากหน้านี้โดยเด็ดขาด
+
 type OrderHistory = {
   cycle_1_stock: number | null;
   cycle_1_order: number | null;
@@ -25,6 +33,13 @@ type FormItemType = MasterInventoryRow & {
   history?: OrderHistory;
 };
 
+// 🚀 Sentinel tab id used to represent the "จัดการข้อมูลหลัก" (master data) tab
+// within the same tab bar as the suppliers, so it can never collide with a real supplier name.
+const MASTER_DATA_TAB = '__MASTER_DATA__';
+
+// 🚀 ไม่มี 'user' ในหน้านี้ เพราะผู้ใช้หน้า Order เป็น OBSERVER เท่านั้น
+type MasterSubTabType = 'inventory' | 'supplier' | 'unit';
+
 export default function OrderPage() {
   const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
   const { showError, showSuccess } = useModal();
@@ -37,6 +52,9 @@ export default function OrderPage() {
 
   // 🚀 เพิ่ม State สำหรับเก็บว่าซัพพลายเออร์เจ้าไหนถูกข้ามบ้าง
   const [skippedSuppliers, setSkippedSuppliers] = useState<string[]>([]);
+
+  // 🚀 State สำหรับแท็บย่อยภายในโหมด "จัดการข้อมูลหลัก"
+  const [masterSubTab, setMasterSubTab] = useState<MasterSubTabType>('inventory');
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -238,6 +256,18 @@ export default function OrderPage() {
   // 🚀 เช็คว่าแท็บปัจจุบันถูกข้ามอยู่หรือไม่
   const isCurrentSkipped = skippedSuppliers.includes(activeSupplier);
 
+  // 🚀 เช็คว่ากำลังอยู่ในโหมด "จัดการข้อมูลหลัก" หรือไม่
+  const isMasterDataMode = activeSupplier === MASTER_DATA_TAB;
+
+  // 🚀 แท็บย่อยของโหมดจัดการข้อมูลหลัก
+  // ไม่มีแท็บ "สิทธิ์ผู้ใช้งาน" ในหน้านี้เด็ดขาด เพราะผู้ใช้หน้า Order คือ OBSERVER เท่านั้น
+  // การจัดการสิทธิ์ผู้ใช้งานยังคงอยู่แค่ในหน้า Master Data Dashboard หลัก (สำหรับ APPROVER)
+  const masterSubTabs: { id: MasterSubTabType; label: string }[] = [
+    { id: 'inventory', label: 'คลังสินค้า' },
+    { id: 'supplier', label: 'ผู้จัดจำหน่าย' },
+    { id: 'unit', label: 'หน่วยนับ' },
+  ];
+
   return (
     <div className="flex min-h-screen bg-zinc-50 text-zinc-900 font-sans">
       <Sidebar />
@@ -245,28 +275,46 @@ export default function OrderPage() {
       <main className="flex-1 p-3 md:p-8 overflow-y-auto">
         <div className="mb-6 border-b border-zinc-200 pb-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">จัดทำใบสั่งซื้อวัตถุดิบ</h1>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              {isMasterDataMode ? 'จัดการข้อมูลหลัก (Master Data)' : 'จัดทำใบสั่งซื้อวัตถุดิบ'}
+            </h1>
             <p className="text-xs text-zinc-500 mt-1">ผู้บันทึกรายการ: {user?.username} ({user?.user_role})</p>
           </div>
 
-          {user?.user_role === 'OBSERVER' && (
+          <div className="flex items-center gap-2">
+            {/* 🚀 ปุ่มจัดการข้อมูลหลัก ย้ายมาไว้หน้าปุ่มออกจากระบบ */}
             <button
               type="button"
-              onClick={logout}
-              className="flex items-center gap-2 px-5 py-2 rounded-full border border-zinc-200 bg-white text-zinc-600 text-xs font-bold shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
+              onClick={() =>
+                setActiveSupplier(isMasterDataMode ? (supplierNames[0] ?? '') : MASTER_DATA_TAB)
+              }
+              className={`flex items-center gap-2 px-5 py-2 rounded-full border text-xs font-bold shadow-sm transition-all
+        ${isMasterDataMode
+                  ? 'bg-black text-white border-black hover:bg-zinc-800'
+                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:text-black'}`}
             >
-              <span>ออกจากระบบ</span>
+              <span>{isMasterDataMode ? '← กลับหน้าสั่งซื้อ' : '⚙️ จัดการข้อมูลหลัก'}</span>
             </button>
-          )}
+
+            {user?.user_role === 'OBSERVER' && (
+              <button
+                type="button"
+                onClick={logout}
+                className="flex items-center gap-2 px-5 py-2 rounded-full border border-zinc-200 bg-white text-zinc-600 text-xs font-bold shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
+              >
+                <span>ออกจากระบบ</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {message && (
+        {message && !isMasterDataMode && (
           <div className={`mb-4 p-4 rounded-xl text-sm font-bold border ${message.type === 'success' ? 'bg-zinc-900 text-white border-black' : 'bg-red-50 text-red-700 border-red-200'}`}>
             {message.text}
           </div>
         )}
 
-        <form onSubmit={handleSubmitOrder} className="space-y-6">
+        <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
 
             <div className="bg-zinc-50/50 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
@@ -291,193 +339,225 @@ export default function OrderPage() {
               })}
             </div>
 
-            <div className="p-2 md:p-6">
-              <div className="overflow-x-auto">
-                {/* 🚀 เพิ่มคลาส disable ตารางเมื่อถูกข้าม */}
-                <table className={`w-full text-left border-collapse text-sm transition-all duration-300 ${isCurrentSkipped ? 'opacity-40 pointer-events-none grayscale select-none' : ''}`}>
-                  <thead>
-                    <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
-                      <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
-                      <th className="py-4 px-2 font-medium w-24">3 รอบก่อน</th>
-                      <th className="py-4 px-2 font-medium w-24">2 รอบก่อน</th>
-                      <th className="py-4 px-2 font-medium w-24">1 รอบก่อน</th>
-                      <th className="py-4 px-2 font-medium text-zinc-900 w-28">คงเหลือ *</th>
-                      <th className="py-4 px-2 font-black text-black w-28">สั่งเพิ่ม *</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 text-zinc-800">
-                    {currentItems.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="py-10 text-center text-zinc-400 text-xs">
-                          ไม่พบรายการสินค้าสำหรับซัพพลายเออร์เจ้านี้
-                        </td>
-                      </tr>
-                    )}
-                    {currentItems.map((item) => {
-                      const currentCount = Number(item.quantity);
+            {isMasterDataMode ? (
+              // 🚀 โหมดจัดการข้อมูลหลัก: แท็บย่อย + คอมโพเนนต์จัดการข้อมูล
+              <div className="flex flex-col">
+                <div className="bg-zinc-50 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-200">
+                  {masterSubTabs.map((tab) => {
+                    const isActive = masterSubTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setMasterSubTab(tab.id)}
+                        className={`px-5 py-3.5 text-xs font-black text-center whitespace-nowrap min-w-[120px] tracking-wide transition-all focus:outline-none
+                          ${isActive ? 'bg-white text-black border-b-4 border-b-black shadow-inner' : 'text-zinc-500 hover:bg-zinc-100/50'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                      const safetyLimitNum = typeof item.safety_quantity === 'number'
-                        ? item.safety_quantity
-                        : Number(item.safety_quantity) || 0;
-
-                      const hasInputtedStock = item.quantity !== '';
-                      const isBelowSafety = !isNaN(currentCount) && currentCount < safetyLimitNum;
-
-                      let rowBgClass = "hover:bg-zinc-50/50";
-                      if (hasInputtedStock && isBelowSafety && !isCurrentSkipped) {
-                        rowBgClass = "bg-red-50/60 hover:bg-red-50/80 text-red-950 border-red-100 transition-colors";
-                      }
-
-                      const unitStr = item.unit?.unit_name || 'หน่วย';
-
-                      return (
-                        <tr key={item.id} className={`transition-colors text-center ${rowBgClass}`}>
-                          <td className="py-4 px-2 font-bold text-zinc-900 text-left">
-                            <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
-                              {item.inventory_name}
-                            </span>
-                            <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
-                              <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
-                              {safetyLimitNum > 0 && (
-                                <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                  Min: {safetyLimitNum}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* 3 รอบก่อน */}
-                          <td className="py-3 px-1">
-                            <div className="flex items-center justify-center">
-                              <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
-                                <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_3_stock !== null ? `${item.history?.cycle_3_stock} ${unitStr}` : '-'}</span></div>
-                                <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_3_order !== null ? `+${item.history?.cycle_3_order} ${unitStr}` : '-'}</span></div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* 2 รอบก่อน */}
-                          <td className="py-3 px-1">
-                            <div className="flex items-center justify-center">
-                              <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
-                                <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_2_stock !== null ? `${item.history?.cycle_2_stock} ${unitStr}` : '-'}</span></div>
-                                <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_2_order !== null ? `+${item.history?.cycle_2_order} ${unitStr}` : '-'}</span></div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* 1 รอบก่อน */}
-                          <td className="py-3 px-1">
-                            <div className="flex items-center justify-center">
-                              <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/60 px-1.5 text-[10px] text-left font-mono opacity-90 ring-1 ring-zinc-100">
-                                <div className="text-zinc-500 truncate">เหลือ: <span className="text-zinc-700 font-bold">{item.history?.cycle_1_stock !== null ? `${item.history?.cycle_1_stock} ${unitStr}` : '-'}</span></div>
-                                <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-emerald-600 font-black">{item.history?.cycle_1_order !== null ? `+${item.history?.cycle_1_order} ${unitStr}` : '-'}</span></div>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* คงเหลือ */}
-                          <td className="py-3 px-2">
-                            <div className="flex items-center justify-center">
-                              <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="0"
-                                  value={item.quantity}
-                                  onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
-                                  disabled={isCurrentSkipped}
-                                  className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent disabled:bg-transparent"
-                                />
-                                <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
-                                  {unitStr}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* สั่งเพิ่ม */}
-                          <td className="py-3 px-2">
-                            <div className="flex items-center justify-center">
-                              <div className="flex items-center w-24 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="0"
-                                  value={item.order_quantity}
-                                  onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
-                                  disabled={isCurrentSkipped}
-                                  className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent disabled:bg-transparent"
-                                />
-                                <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
-                                  {unitStr}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
+                <div className="p-3 sm:p-6">
+                  {masterSubTab === 'inventory' && <InventoryTab />}
+                  {masterSubTab === 'supplier' && <SupplierTab />}
+                  {masterSubTab === 'unit' && <UnitTab />}
+                </div>
+              </div>
+            ) : (
+              // 🚀 โหมดจัดทำคำสั่งซื้อ (เดิม) — <form> อยู่แค่ตรงนี้ ไม่ครอบคลุมส่วนจัดการข้อมูลหลัก
+              // เพื่อป้องกัน <form> ซ้อน <form> (InventoryTab/SupplierTab/UnitTab มี modal ที่เป็น <form> ของตัวเอง)
+              <form onSubmit={handleSubmitOrder}>
+                <div className="p-2 md:p-6">
+                  <div className="overflow-x-auto">
+                    {/* 🚀 เพิ่มคลาส disable ตารางเมื่อถูกข้าม */}
+                    <table className={`w-full text-left border-collapse text-sm transition-all duration-300 ${isCurrentSkipped ? 'opacity-40 pointer-events-none grayscale select-none' : ''}`}>
+                      <thead>
+                        <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
+                          <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
+                          <th className="py-4 px-2 font-medium w-24">3 รอบก่อน</th>
+                          <th className="py-4 px-2 font-medium w-24">2 รอบก่อน</th>
+                          <th className="py-4 px-2 font-medium w-24">1 รอบก่อน</th>
+                          <th className="py-4 px-2 font-medium text-zinc-900 w-28">คงเหลือ *</th>
+                          <th className="py-4 px-2 font-black text-black w-28">สั่งเพิ่ม *</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 text-zinc-800">
+                        {currentItems.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="py-10 text-center text-zinc-400 text-xs">
+                              ไม่พบรายการสินค้าสำหรับซัพพลายเออร์เจ้านี้
+                            </td>
+                          </tr>
+                        )}
+                        {currentItems.map((item) => {
+                          const currentCount = Number(item.quantity);
 
-            <div className="p-4 md:p-5 bg-zinc-50 border-t border-zinc-200 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+                          const safetyLimitNum = typeof item.safety_quantity === 'number'
+                            ? item.safety_quantity
+                            : Number(item.safety_quantity) || 0;
 
-              <div className="flex flex-col sm:flex-row gap-4 w-full xl:max-w-2xl">
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                    ลงนาม (Signature) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={signature}
-                    onChange={(e) => setSignature(e.target.value)}
-                    placeholder=""
-                    className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
-                  />
+                          const hasInputtedStock = item.quantity !== '';
+                          const isBelowSafety = !isNaN(currentCount) && currentCount < safetyLimitNum;
+
+                          let rowBgClass = "hover:bg-zinc-50/50";
+                          if (hasInputtedStock && isBelowSafety && !isCurrentSkipped) {
+                            rowBgClass = "bg-red-50/60 hover:bg-red-50/80 text-red-950 border-red-100 transition-colors";
+                          }
+
+                          const unitStr = item.unit?.unit_name || 'หน่วย';
+
+                          return (
+                            <tr key={item.id} className={`transition-colors text-center ${rowBgClass}`}>
+                              <td className="py-4 px-2 font-bold text-zinc-900 text-left">
+                                <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
+                                  {item.inventory_name}
+                                </span>
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
+                                  <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
+                                  {safetyLimitNum > 0 && (
+                                    <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
+                                      Min: {safetyLimitNum}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* 3 รอบก่อน */}
+                              <td className="py-3 px-1">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
+                                    <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_3_stock !== null ? `${item.history?.cycle_3_stock} ${unitStr}` : '-'}</span></div>
+                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_3_order !== null ? `+${item.history?.cycle_3_order} ${unitStr}` : '-'}</span></div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 2 รอบก่อน */}
+                              <td className="py-3 px-1">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
+                                    <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_2_stock !== null ? `${item.history?.cycle_2_stock} ${unitStr}` : '-'}</span></div>
+                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_2_order !== null ? `+${item.history?.cycle_2_order} ${unitStr}` : '-'}</span></div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 1 รอบก่อน */}
+                              <td className="py-3 px-1">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/60 px-1.5 text-[10px] text-left font-mono opacity-90 ring-1 ring-zinc-100">
+                                    <div className="text-zinc-500 truncate">เหลือ: <span className="text-zinc-700 font-bold">{item.history?.cycle_1_stock !== null ? `${item.history?.cycle_1_stock} ${unitStr}` : '-'}</span></div>
+                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-emerald-600 font-black">{item.history?.cycle_1_order !== null ? `+${item.history?.cycle_1_order} ${unitStr}` : '-'}</span></div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* คงเหลือ */}
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center">
+                                  <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder="0"
+                                      value={item.quantity}
+                                      onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
+                                      disabled={isCurrentSkipped}
+                                      className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent disabled:bg-transparent"
+                                    />
+                                    <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
+                                      {unitStr}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* สั่งเพิ่ม */}
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center">
+                                  <div className="flex items-center w-24 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder="0"
+                                      value={item.order_quantity}
+                                      onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
+                                      disabled={isCurrentSkipped}
+                                      className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent disabled:bg-transparent"
+                                    />
+                                    <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
+                                      {unitStr}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                    กำหนดส่ง (Delivery)
-                  </label>
-                  <input
-                    type="text"
-                    value={deliveryWhen}
-                    onChange={(e) => setDeliveryWhen(e.target.value)}
-                    placeholder=""
-                    className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
-                  />
-                </div>
-              </div>
+                <div className="p-4 md:p-5 bg-zinc-50 border-t border-zinc-200 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
 
-              <div className="flex flex-col sm:flex-row items-center gap-2 w-full xl:w-auto">
-                <button
-                  type="button"
-                  onClick={handleToggleSkipSupplier}
-                  disabled={isSubmitting}
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all w-full sm:w-auto
-                    ${isCurrentSkipped
-                      ? 'bg-zinc-900 border-black text-white hover:bg-zinc-800 shadow-sm'
-                      : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100 hover:text-black'}`}
-                >
-                  {isCurrentSkipped ? '↺ เปิดสั่งเจ้านี้ใหม่' : '✕ ข้ามเจ้านี้ (ไม่สั่ง)'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-black text-white text-xs font-black shadow-sm hover:bg-zinc-800 active:scale-[0.98] disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed transition-all w-full sm:w-auto whitespace-nowrap"
-                >
-                  {isSubmitting ? 'กำลังบันทึก...' : 'ส่งใบจัดทำคำสั่งซื้อรวม'}
-                </button>
-              </div>
-            </div>
+                  <div className="flex flex-col sm:flex-row gap-4 w-full xl:max-w-2xl">
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                        ลงนาม (Signature) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={signature}
+                        onChange={(e) => setSignature(e.target.value)}
+                        placeholder=""
+                        className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                        กำหนดส่ง (Delivery)
+                      </label>
+                      <input
+                        type="text"
+                        value={deliveryWhen}
+                        onChange={(e) => setDeliveryWhen(e.target.value)}
+                        placeholder=""
+                        className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-2 w-full xl:w-auto">
+                    <button
+                      type="button"
+                      onClick={handleToggleSkipSupplier}
+                      disabled={isSubmitting}
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-bold transition-all w-full sm:w-auto
+                        ${isCurrentSkipped
+                          ? 'bg-zinc-900 border-black text-white hover:bg-zinc-800 shadow-sm'
+                          : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100 hover:text-black'}`}
+                    >
+                      {isCurrentSkipped ? '↺ เปิดสั่งเจ้านี้ใหม่' : '✕ ข้ามเจ้านี้ (ไม่สั่ง)'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-black text-white text-xs font-black shadow-sm hover:bg-zinc-800 active:scale-[0.98] disabled:bg-zinc-200 disabled:text-zinc-400 disabled:cursor-not-allowed transition-all w-full sm:w-auto whitespace-nowrap"
+                    >
+                      {isSubmitting ? 'กำลังบันทึก...' : 'ส่งใบจัดทำคำสั่งซื้อรวม'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
 
           </div>
-        </form>
+        </div>
       </main>
     </div>
   );

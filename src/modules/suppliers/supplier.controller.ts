@@ -9,7 +9,7 @@ export const suppliersController = {
     async list(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = await req.json().catch(() => ({}));
             const { page, limit, filters } = SearchSupplierInput.parse(body);
@@ -34,7 +34,7 @@ export const suppliersController = {
     async create(req: NextRequest) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = CreateSupplierInput.parse(await req.json());
             const supplier = await suppliersService.createSupplier({
@@ -50,7 +50,7 @@ export const suppliersController = {
     async update(req: NextRequest, params: { id: string }) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             const body = UpdateSupplierInput.parse(await req.json());
             const updated = await suppliersService.updateSupplier(params.id, {
@@ -66,7 +66,7 @@ export const suppliersController = {
     async delete(req: NextRequest, params: { id: string }) {
         try {
             const auth = requireAuth(req);
-            requireRole(auth, 'APPROVER');
+            requireRole(auth, 'APPROVER', 'OBSERVER');
 
             await suppliersService.deleteSupplier(params.id);
             return NextResponse.json({ success: true });
