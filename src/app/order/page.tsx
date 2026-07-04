@@ -415,7 +415,7 @@ export default function OrderPage() {
                                   {item.inventory_name}
                                 </span>
                                 <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
-                                  {/* <span>ID: {item.id.slice(0, 8).toUpperCase()}</span> */}
+                                  <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
                                   {safetyLimitNum > 0 && (
                                     <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
                                       Min: {safetyLimitNum}
@@ -518,7 +518,7 @@ export default function OrderPage() {
                       />
                     </div>
 
-                    <div className="flex flex-col gap-1.5 flex-1">
+                    {/* <div className="flex flex-col gap-1.5 flex-1">
                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
                         กำหนดส่ง (Delivery)
                       </label>
@@ -529,7 +529,7 @@ export default function OrderPage() {
                         placeholder=""
                         className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
                       />
-                    </div>
+                    </div> */}
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-2 w-full xl:w-auto">
