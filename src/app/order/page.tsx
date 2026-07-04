@@ -269,7 +269,7 @@ export default function OrderPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 text-zinc-900 font-sans">
+    <div className="flex flex-col md:flex-row min-h-screen bg-zinc-50 text-zinc-900 font-sans">
       <Sidebar />
 
       <main className="flex-1 p-3 md:p-8 overflow-y-auto">
@@ -415,7 +415,7 @@ export default function OrderPage() {
                                   {item.inventory_name}
                                 </span>
                                 <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
-                                  <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
+                                  {/* <span>ID: {item.id.slice(0, 8).toUpperCase()}</span> */}
                                   {safetyLimitNum > 0 && (
                                     <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
                                       Min: {safetyLimitNum}

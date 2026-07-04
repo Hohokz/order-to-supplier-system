@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link'; // 💡 เหลือบรรทัดนี้บรรทัดเดียวพอครับ
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 export function Sidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   // 💡 ถ้าเป็น OBSERVER ไม่ต้องแสดง Sidebar ออกมาบนหน้าจอเลย
   if (user?.user_role === 'OBSERVER') return null;
@@ -44,64 +45,163 @@ export function Sidebar() {
     },
   ];
 
-  return (
-    <aside className="w-64 bg-white border-r border-zinc-200 min-h-screen flex flex-col justify-between hidden md:flex shrink-0">
-      
-      {/* ส่วนบน: โลโก้แบรนด์ระบบ และรายการนำทางหลัก */}
-      <div className="p-6">
-        {/* โลโก้ระบบ */}
-        <div className="flex items-center gap-3 mb-8 px-2">
-          <div className="h-8 w-8 rounded-lg bg-black flex items-center justify-center shadow-md shadow-zinc-200">
-            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </div>
-          <span className="font-black text-sm tracking-wider uppercase text-zinc-900">WMS SYSTEM</span>
-        </div>
-
-        {/* เมนูลิงก์แบบ Dynamic */}
-        <nav className="space-y-1.5">
-          {menuItems.map((item) => {
-            // 💡 ตรวจจับด้วย startsWith เพื่อให้ตอนกดสลับแท็บย่อยในหน้า master-data แล้วไฮไลท์สียังติดอยู่
-            const isActive = pathname.startsWith(item.path);
-            
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-150 active:scale-[0.98]
-                  ${isActive 
-                    ? 'bg-black text-white shadow-md shadow-zinc-200' 
-                    : 'text-zinc-500 hover:text-black hover:bg-zinc-100'
-                  }`}
-              >
-                {item.icon}
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* ส่วนล่างสุด: รายละเอียดโปรไฟล์สิทธิ์ และปุ่มสั่งตัดเซสชัน Logout */}
-      <div className="p-4 border-t border-zinc-100 bg-zinc-50/50">
-        <div className="px-2 mb-4">
-          <p className="text-xs font-black text-zinc-800 truncate">ผู้ใช้งาน: {user?.username || 'Unidentified'}</p>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-0.5">ระดับสิทธิ์: {user?.user_role || 'Guest'}</p>
-        </div>
+  const renderNavLinks = () => (
+    <nav className="space-y-1.5">
+      {menuItems.map((item) => {
+        // 💡 ตรวจจับด้วย startsWith เพื่อให้ตอนกดสลับแท็บย่อยในหน้า master-data แล้วไฮไลท์สียังติดอยู่
+        const isActive = pathname.startsWith(item.path);
         
-        <button
-          type="button"
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-600 text-xs font-bold shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 active:bg-red-100 transition-all duration-150"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          <span>ออกจากระบบ</span>
-        </button>
-      </div>
+        return (
+          <Link
+            key={item.path}
+            href={item.path}
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-150 active:scale-[0.98]
+              ${isActive 
+                ? 'bg-black text-white shadow-md shadow-zinc-200' 
+                : 'text-zinc-500 hover:text-black hover:bg-zinc-100'
+              }`}
+          >
+            {item.icon}
+            <span>{item.name}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
 
-    </aside>
+  return (
+    <>
+      {/* ส่วนหัวบน Mobile (Mobile Topbar with Hamburger Icon) */}
+      <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-zinc-200 sticky top-0 z-30 w-full shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="p-2 rounded-xl text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 transition-colors focus:outline-none"
+            aria-label="Open sidebar menu"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-black flex items-center justify-center shadow-md">
+              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <span className="font-black text-sm tracking-wider uppercase text-zinc-900">WMS</span>
+          </div>
+        </div>
+
+        <div className="text-right pr-1">
+          <p className="text-[10px] font-black text-zinc-800 truncate max-w-[120px]">{user?.username || 'Unidentified'}</p>
+          <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">{user?.user_role || 'Guest'}</p>
+        </div>
+      </header>
+
+      {/* Backdrop (Overlay) ของ Drawer บน Mobile */}
+      {isOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity duration-300"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Drawer สำหรับจอ Mobile */}
+      <aside
+        className={`md:hidden fixed top-0 bottom-0 left-0 w-64 bg-white border-r border-zinc-200 z-50 flex flex-col justify-between transition-transform duration-300 ease-out transform
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-8 px-2">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-black flex items-center justify-center shadow-md">
+                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <span className="font-black text-sm tracking-wider uppercase text-zinc-900">WMS SYSTEM</span>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors focus:outline-none"
+              aria-label="Close sidebar menu"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {renderNavLinks()}
+        </div>
+
+        <div className="p-4 border-t border-zinc-100 bg-zinc-50/50">
+          <div className="px-2 mb-4">
+            <p className="text-xs font-black text-zinc-800 truncate">ผู้ใช้งาน: {user?.username || 'Unidentified'}</p>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-0.5">ระดับสิทธิ์: {user?.user_role || 'Guest'}</p>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false);
+              logout();
+            }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-600 text-xs font-bold shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 active:bg-red-100 transition-all duration-150"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>ออกจากระบบ</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Sidebar เมนูสำหรับหน้าจอ Desktop (เหมือนเดิม) */}
+      <aside className="w-64 bg-white border-r border-zinc-200 min-h-screen flex flex-col justify-between hidden md:flex shrink-0">
+        
+        {/* ส่วนบน: โลโก้แบรนด์ระบบ และรายการนำทางหลัก */}
+        <div className="p-6">
+          {/* โลโก้ระบบ */}
+          <div className="flex items-center gap-3 mb-8 px-2">
+            <div className="h-8 w-8 rounded-lg bg-black flex items-center justify-center shadow-md shadow-zinc-200">
+              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <span className="font-black text-sm tracking-wider uppercase text-zinc-900">WMS SYSTEM</span>
+          </div>
+
+          {/* เมนูลิงก์แบบ Dynamic */}
+          {renderNavLinks()}
+        </div>
+
+        {/* ส่วนล่างสุด: รายละเอียดโปรไฟล์สิทธิ์ และปุ่มสั่งตัดเซสชัน Logout */}
+        <div className="p-4 border-t border-zinc-100 bg-zinc-50/50">
+          <div className="px-2 mb-4">
+            <p className="text-xs font-black text-zinc-800 truncate">ผู้ใช้งาน: {user?.username || 'Unidentified'}</p>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mt-0.5">ระดับสิทธิ์: {user?.user_role || 'Guest'}</p>
+          </div>
+          
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-200 bg-white text-zinc-600 text-xs font-bold shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-100 active:bg-red-100 transition-all duration-150"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1" />
+            </svg>
+            <span>ออกจากระบบ</span>
+          </button>
+        </div>
+
+      </aside>
+    </>
   );
 }

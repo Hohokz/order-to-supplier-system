@@ -206,7 +206,9 @@ export function SupplierTab() {
               <input type="text" required disabled={isSubmitting} value={formData.supplier_name} onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold disabled:bg-zinc-50" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* TODO: รับเป็นช่องขึ้น text วันที่ส่ง varchar100 }
+
+            {/* <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">ชื่อผู้ติดต่อ</label>
                 <input type="text" disabled={isSubmitting} value={formData.contract_person} onChange={(e) => setFormData({ ...formData, contract_person: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold disabled:bg-zinc-50" />
@@ -224,7 +226,6 @@ export function SupplierTab() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">เลขประจำตัวผู้เสียภาษี (สูงสุด 13 หลัก)</label>
-                {/* 💡 2. เพิ่ม maxLength={13} ที่ตัว Input ล็อกไม่ให้พนักงานกดพิมพ์เกินตั้งแต่หน้าจอ */}
                 <input
                   type="text"
                   maxLength={13}
@@ -239,7 +240,7 @@ export function SupplierTab() {
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-zinc-500">ที่อยู่</label>
               <textarea disabled={isSubmitting} value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold h-16 resize-none disabled:bg-zinc-50" />
-            </div>
+            </div> */}
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-zinc-500">สถานะ</label>

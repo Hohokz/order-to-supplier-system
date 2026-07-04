@@ -208,7 +208,7 @@ function DashboardContent() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 text-zinc-900 font-sans">
+    <div className="flex flex-col md:flex-row min-h-screen bg-zinc-50 text-zinc-900 font-sans">
       <Sidebar />
 
       <main className="flex-1 p-4 md:p-8 overflow-y-auto flex flex-col justify-between">

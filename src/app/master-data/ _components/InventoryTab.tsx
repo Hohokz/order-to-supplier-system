@@ -253,7 +253,7 @@ export function InventoryTab() {
                   className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50"
                 />
               </div>
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">ราคาต่อหน่วย (บาท) *</label>
                 <input
                   type="number"
@@ -265,7 +265,7 @@ export function InventoryTab() {
                   onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
                   className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50"
                 />
-              </div>
+              </div> */}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

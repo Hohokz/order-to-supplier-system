@@ -33,7 +33,7 @@ export default function MasterDataDashboardPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 text-zinc-900 font-sans">
+    <div className="flex flex-col md:flex-row min-h-screen bg-zinc-50 text-zinc-900 font-sans">
       {/* 🛡️ แผง Sidebar ด้านข้าง ล็อกตำแหน่งถาวรตามสเปกแดชบอร์ดหลัก */}
       <Sidebar /> 
 
