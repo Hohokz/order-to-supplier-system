@@ -415,7 +415,7 @@ export default function OrderPage() {
                                   {item.inventory_name}
                                 </span>
                                 <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
-                                  <span>ID: {item.id.slice(0, 8).toUpperCase()}</span>
+                                  {/* <span>ID: {item.id.slice(0, 8).toUpperCase()}</span> */}
                                   {safetyLimitNum > 0 && (
                                     <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
                                       Min: {safetyLimitNum}
