@@ -14,6 +14,9 @@ export const CreateOrderItemResponseDto = z.object({
     approve_date: z.date(),
     remark: z.string(),
     delivery_when: z.string(),
+    order_unit: z.string(),
+    quantity_unit: z.string(),
+    supplier_remark: z.string(),
 });
 
 export const CreateOrderResponseDto = z.object({

@@ -14,4 +14,5 @@ export interface OrderItem extends QueryResultRow {
     delivery_when: string;
     order_unit: string;
     quantity_unit: string;
+    supplier_remark: string;
 }

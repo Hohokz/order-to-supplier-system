@@ -43,6 +43,11 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
 
   const tabApprovedBy = currentItems.find(item => item.approve_by)?.approve_by || null;
 
+  // ค้นหาหมายเหตุซัพพลายเออร์จากรายการใดก็ได้ในกลุ่ม
+  const activeSupplierRemark = currentItems
+    .map(item => (item as OrderItemWithHistory & { supplier_remark?: string | null }).supplier_remark)
+    .find(remark => remark && remark.trim() !== '') || '';
+
   useEffect(() => {
     const fetchApproverName = async () => {
       if (tabApprovedBy) {
@@ -97,29 +102,41 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
           <button onClick={onClose} className="h-7 w-7 rounded-full hover:bg-zinc-200 flex items-center justify-center text-zinc-400 hover:text-black transition-colors text-xs font-bold">✕</button>
         </div>
 
-        <div className="bg-zinc-50/20 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
-          {supplierNames.map((name) => {
-            const isActive = activeSupplier === name;
-            const itemsForThisSupplier = groupedItems[name] || [];
-            const relevantItems = itemsForThisSupplier.filter(item => item.approve_status !== 'NOT_ORDERED');
-            const isThisTabApproved = relevantItems.length > 0 &&
-              relevantItems.every(item => item.approve_status === 'APPROVED');
+        <div className="bg-zinc-50/20 border-b border-zinc-200 flex flex-col xl:flex-row xl:items-center justify-between transition-all">
+          <div className="flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100 w-full xl:w-auto flex-1">
+            {supplierNames.map((name) => {
+              const isActive = activeSupplier === name;
+              const itemsForThisSupplier = groupedItems[name] || [];
+              const relevantItems = itemsForThisSupplier.filter(item => item.approve_status !== 'NOT_ORDERED');
+              const isThisTabApproved = relevantItems.length > 0 &&
+                relevantItems.every(item => item.approve_status === 'APPROVED');
 
-            return (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setActiveSupplier(name)}
-                className={`px-5 py-3.5 text-xs font-bold whitespace-nowrap min-w-[140px] transition-all focus:outline-none flex items-center justify-center gap-1.5
-        ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black' : 'text-zinc-400 hover:bg-zinc-50'}`}
-              >
-                <span>{name}</span>
-                {isThisTabApproved && (
-                  <span className="text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full font-black scale-90">✓</span>
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setActiveSupplier(name)}
+                  className={`px-5 py-3.5 text-xs font-bold whitespace-nowrap min-w-[140px] transition-all focus:outline-none flex items-center justify-center gap-1.5
+          ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black shadow-sm' : 'text-zinc-400 hover:bg-zinc-50'}`}
+                >
+                  <span>{name}</span>
+                  {isThisTabApproved && (
+                    <span className="text-[9px] bg-zinc-900 text-white px-1.5 py-0.5 rounded-full font-black scale-90">✓</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 💡 ย้ายหมายเหตุมาไว้ฝั่งขวา (Right-aligned) ในหน้าจอใหญ่ */}
+          {activeSupplierRemark && (
+            <div className="p-3 xl:py-3.5 xl:px-6 w-full xl:w-auto flex justify-end border-t border-zinc-200 xl:border-t-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">หมายเหตุ:</span>
+                <span className="text-xs font-medium text-zinc-800">{activeSupplierRemark}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-white">
@@ -209,9 +226,7 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
                         {displayQuantityUnit && <span className="ml-1 text-[10px] font-sans font-normal opacity-70">{displayQuantityUnit}</span>}
                       </td>
 
-                      {/* 💡 3. แสดงประวัติ 3 รอบย้อนหลัง ดึงหน่วยนับของอดีตมาใช้ตรงๆ ไร้ any */}
                       {[3, 2, 1].map((cycle) => {
-                        // Cast type อย่างปลอดภัยเพื่อป้องกัน TS Error กรณีที่ types/order.ts ยังไม่มีฟิลด์เหล่านี้
                         const safeHistory = history as Record<string, string | number | null | undefined> | undefined;
 
                         const stock = safeHistory?.[`cycle_${cycle}_stock`];
@@ -220,7 +235,6 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
                         const histQuantityUnit = safeHistory?.[`cycle_${cycle}_quantity_unit`] as string | null | undefined;
                         const histOrderUnit = safeHistory?.[`cycle_${cycle}_order_unit`] as string | null | undefined;
 
-                        // ถ้าไม่มีเก็บไว้ในอดีต ให้ใช้หน่วยหลัก (unit_name) แทน
                         const displayHistQuantityUnit = histQuantityUnit || itemData.unit_name || '';
                         const displayHistOrderUnit = histOrderUnit || itemData.unit_name || '';
 

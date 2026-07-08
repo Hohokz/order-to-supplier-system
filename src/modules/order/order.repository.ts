@@ -19,16 +19,19 @@ export interface ItemHistoryRow {
     cycle_1_order: number | null;
     cycle_1_quantity_unit: string | null; // 💡 เพิ่มเติม
     cycle_1_order_unit: string | null;
+    cycle_1_supplier_remark: string | null;
     cycle_1_date?: string | Date | null;
     cycle_2_stock: number | null;
     cycle_2_order: number | null;
     cycle_2_quantity_unit: string | null; // 💡 เพิ่มเติม
     cycle_2_order_unit: string | null;
+    cycle_2_supplier_remark: string | null;
     cycle_2_date?: string | Date | null;
     cycle_3_stock: number | null;
     cycle_3_order: number | null;
-    cycle_3_quantity_unit: string | null; // 💡 เพิ่มเติม
+    cycle_3_quantity_unit: string | null;
     cycle_3_order_unit: string | null;
+    cycle_3_supplier_remark: string | null;
     cycle_3_date?: string | Date | null;
 }
 
@@ -75,6 +78,7 @@ export const orderRepository = {
                             'quantity_unit', oi.quantity_unit,
                             'quantity', oi.quantity, 
                             'order_quantity', oi.order_quantity,
+                            'supplier_remark', oi.supplier_remark,
                             'approve_status', oi.approve_status,
                             'approve_by', oi.approve_by,
                             'approve_date', oi.approve_date
@@ -121,8 +125,9 @@ export const orderRepository = {
             oi.inventory_id,
             oi.quantity as stock_qty,
             oi.order_quantity as order_qty,
-            oi.quantity_unit as quantity_unit, -- ดึงหน่วยคงเหลือ ณ ตอนนั้น
-            oi.order_unit as order_unit,       -- ดึงหน่วยสั่งซื้อ ณ ตอนนั้น
+            oi.quantity_unit as quantity_unit,
+            oi.order_unit as order_unit,
+            oi.supplier_remark as supplier_remark,
             o.created_date,
             ROW_NUMBER() OVER(PARTITION BY oi.inventory_id ORDER BY o.created_date DESC) as rn
             FROM order_items oi
@@ -135,18 +140,21 @@ export const orderRepository = {
             MAX(CASE WHEN rn = 1 THEN order_qty END) as cycle_1_order,
             MAX(CASE WHEN rn = 1 THEN quantity_unit END) as cycle_1_quantity_unit,
             MAX(CASE WHEN rn = 1 THEN order_unit END) as cycle_1_order_unit,
+            MAX(CASE WHEN rn = 1 THEN supplier_remark END) as cycle_1_supplier_remark,
             MAX(CASE WHEN rn = 1 THEN created_date END) as cycle_1_date,
             
             MAX(CASE WHEN rn = 2 THEN stock_qty END) as cycle_2_stock,
             MAX(CASE WHEN rn = 2 THEN order_qty END) as cycle_2_order,
             MAX(CASE WHEN rn = 2 THEN quantity_unit END) as cycle_2_quantity_unit,
             MAX(CASE WHEN rn = 2 THEN order_unit END) as cycle_2_order_unit,
+            MAX(CASE WHEN rn = 2 THEN supplier_remark END) as cycle_2_supplier_remark,
             MAX(CASE WHEN rn = 2 THEN created_date END) as cycle_2_date,
             
             MAX(CASE WHEN rn = 3 THEN stock_qty END) as cycle_3_stock,
             MAX(CASE WHEN rn = 3 THEN order_qty END) as cycle_3_order,
             MAX(CASE WHEN rn = 3 THEN quantity_unit END) as cycle_3_quantity_unit,
             MAX(CASE WHEN rn = 3 THEN order_unit END) as cycle_3_order_unit,
+            MAX(CASE WHEN rn = 3 THEN supplier_remark END) as cycle_3_supplier_remark,
             MAX(CASE WHEN rn = 3 THEN created_date END) as cycle_3_date
         FROM RankedOrders
         WHERE rn <= 3
@@ -171,11 +179,11 @@ export const orderRepository = {
             const newOrderId = orderRes.rows[0].id;
 
             const itemSql = `
-            INSERT INTO order_items (order_id, inventory_id, quantity, order_quantity, approve_status, supplier_id, order_unit, quantity_unit)
-            VALUES ($1, $2, $3, $4, 'PENDING', (SELECT supplier_id FROM inventories WHERE id = $2), $5, $6);
+            INSERT INTO order_items (order_id, inventory_id, quantity, order_quantity, approve_status, supplier_id, order_unit, quantity_unit, supplier_remark)
+            VALUES ($1, $2, $3, $4, 'PENDING', (SELECT supplier_id FROM inventories WHERE id = $2), $5, $6, $7);
         `;
             for (const item of data.items) {
-                await client.query(itemSql, [newOrderId, item.inventory_id, item.quantity, item.order_quantity, item.order_unit, item.quantity_unit]);
+                await client.query(itemSql, [newOrderId, item.inventory_id, item.quantity, item.order_quantity, item.order_unit, item.quantity_unit, item.supplier_remark]);
             }
 
             const dtoSql = `
@@ -195,6 +203,7 @@ export const orderRepository = {
                          'quantity_unit', oi.quantity_unit,
                          'order_quantity', oi.order_quantity,
                          'delivery_when', oi.delivery_when,
+                         'supplier_remark', oi.supplier_remark,
                          'approve_status', oi.approve_status,
                          'approve_by', oi.approve_by,
                          'approve_date', oi.approve_date

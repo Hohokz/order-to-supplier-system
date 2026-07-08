@@ -7,11 +7,12 @@ export const OrderItemResponseSchema = z.object({
   supplier_name: z.string().nullable().optional(),
   unit: z.string().nullable().optional(),
   unit_name: z.string().nullable().optional(),
-  quantity: z.number(),       
-  order_quantity: z.number(), 
+  quantity: z.number(),
+  order_quantity: z.number(),
   approve_status: z.string(),
   approve_by: z.string().nullable().optional(),
-  approve_date: z.any().nullable().optional()
+  approve_date: z.any().nullable().optional(),
+  supplier_remark: z.string().nullable().optional(),
 });
 
 export const OrderResponseSchema = z.object({

@@ -16,12 +16,18 @@ import { extractErrorMessage } from '@/lib/error';
 type OrderHistory = {
   cycle_1_stock: number | null;
   cycle_1_order: number | null;
+  cycle_1_quantity_unit?: string | null;
+  cycle_1_order_unit?: string | null;
   cycle_1_date?: string | Date | null;
   cycle_2_stock: number | null;
   cycle_2_order: number | null;
+  cycle_2_quantity_unit?: string | null;
+  cycle_2_order_unit?: string | null;
   cycle_2_date?: string | Date | null;
   cycle_3_stock: number | null;
   cycle_3_order: number | null;
+  cycle_3_quantity_unit?: string | null;
+  cycle_3_order_unit?: string | null;
   cycle_3_date?: string | Date | null;
 };
 
@@ -29,8 +35,8 @@ type FormItemType = MasterInventoryRow & {
   seq: number;
   quantity: number | string;
   order_quantity: number | string;
-  quantity_unit?: string; // 💡 เก็บค่าชื่อหน่วยที่เลือก/พิมพ์สำหรับช่อง "คงเหลือ"
-  order_unit?: string;    // เก็บค่าชื่อหน่วยที่เลือก/พิมพ์สำหรับช่อง "สั่งเพิ่ม"
+  quantity_unit?: string;
+  order_unit?: string;
   safety_quantity?: number | string;
   history?: OrderHistory;
 };
@@ -53,6 +59,10 @@ export default function OrderPage() {
   const [signature, setSignature] = useState<string>('');
   const [activeSupplier, setActiveSupplier] = useState<string>('');
   const [skippedSuppliers, setSkippedSuppliers] = useState<string[]>([]);
+
+  // 💡 State เก็บหมายเหตุแยกตามชื่อซัพพลายเออร์
+  const [supplierRemarks, setSupplierRemarks] = useState<Record<string, string>>({});
+
   const [masterSubTab, setMasterSubTab] = useState<MasterSubTabType>('inventory');
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -106,8 +116,8 @@ export default function OrderPage() {
             created_date: inventoryRow.created_date,
             quantity: '',
             order_quantity: '',
-            quantity_unit: defaultUnitName, // 💡 เริ่มต้นใช้หน่วยนับหลักของวัตถุดิบ
-            order_unit: defaultUnitName,    // เริ่มต้นใช้หน่วยนับหลักของวัตถุดิบ
+            quantity_unit: defaultUnitName,
+            order_unit: defaultUnitName,
             history: historyMap[inventoryRow.id] || {
               cycle_1_stock: null, cycle_1_order: null,
               cycle_2_stock: null, cycle_2_order: null,
@@ -160,7 +170,6 @@ export default function OrderPage() {
     );
   };
 
-  // 💡 ฟังก์ชันควบคุมการเปลี่ยนชื่อหน่วยนับแบบไดนามิกแยกฟิลด์อิสระ
   const handleUnitTextChange = (itemId: string, field: 'quantity_unit' | 'order_unit', newText: string) => {
     setItems((prevItems) =>
       prevItems.map((item) =>
@@ -234,13 +243,16 @@ export default function OrderPage() {
           const currentQuantityUnit = item.quantity_unit?.trim() || defaultUnitName;
           const currentOrderUnit = item.order_unit?.trim() || defaultUnitName;
 
+          const supplierName = item.supplier?.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
+          const currentRemark = supplierRemarks[supplierName]?.trim() || ''; // 💡 ดึงหมายเหตุของซัพพลายเออร์เจ้านี้มาแนบ
+
           return {
             inventory_id: item.id,
             quantity: Number(item.quantity),
             order_quantity: Number(item.order_quantity),
-            // 💡 แนบค่าชื่อหน่วยนับของแต่ละฝั่งส่งไปบันทึกยัง Database หลังบ้าน
             quantity_unit: currentQuantityUnit,
-            order_unit: currentOrderUnit
+            order_unit: currentOrderUnit,
+            supplier_remark: currentRemark
           };
         })
       };
@@ -252,6 +264,7 @@ export default function OrderPage() {
       showSuccess(successText);
       setSignature('');
       setSkippedSuppliers([]);
+      setSupplierRemarks({}); // 💡 ล้างข้อมูลหมายเหตุเมื่อส่งสำเร็จ
       setItems(prev => prev.map(item => ({
         ...item,
         quantity: '',
@@ -279,8 +292,10 @@ export default function OrderPage() {
   if (!isAuthenticated) return null;
 
   const currentItems = groupedItems[activeSupplier] || [];
+
   const cycle1Date = currentItems.find(item => item.history?.cycle_1_date)?.history?.cycle_1_date;
   const cycle2Date = currentItems.find(item => item.history?.cycle_2_date)?.history?.cycle_2_date;
+
   const isCurrentSkipped = skippedSuppliers.includes(activeSupplier);
   const isMasterDataMode = activeSupplier === MASTER_DATA_TAB;
 
@@ -342,26 +357,53 @@ export default function OrderPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
 
-            <div className="bg-zinc-50/50 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
-              {supplierNames.map((name) => {
-                const isActive = activeSupplier === name;
-                const isSkipped = skippedSuppliers.includes(name);
+            {/* 💡 แถบแท็บซัพพลายเออร์ + ช่องกรอกหมายเหตุ (รวมไว้มุมขวาตามที่คุณวง) */}
+            {!isMasterDataMode ? (
+              <div className="bg-zinc-50/50 border-b border-zinc-200 flex flex-col xl:flex-row xl:items-center justify-between transition-all">
+                <div className="flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100 w-full xl:w-auto flex-1">
+                  {supplierNames.map((name) => {
+                    const isActive = activeSupplier === name;
+                    const isSkipped = skippedSuppliers.includes(name);
 
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => setActiveSupplier(name)}
-                    className={`px-6 py-4 text-sm font-bold text-center whitespace-nowrap min-w-[140px] transition-all focus:outline-none flex flex-col items-center gap-0.5
-                      ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black' : 'text-zinc-400 hover:bg-zinc-50'}
-                      ${isSkipped ? 'opacity-50' : ''}`}
-                  >
-                    <span>{name}</span>
-                    {isSkipped && <span className="text-[9px] bg-zinc-200 text-zinc-600 px-1.5 rounded-full font-medium">ไม่ได้สั่งเจ้านี้</span>}
-                  </button>
-                );
-              })}
-            </div>
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => setActiveSupplier(name)}
+                        className={`px-6 py-4 text-sm font-bold text-center whitespace-nowrap min-w-[140px] transition-all focus:outline-none flex flex-col items-center gap-0.5
+                          ${isActive ? 'bg-white text-black border-b-2 border-b-black font-black shadow-sm' : 'text-zinc-400 hover:bg-zinc-50'}
+                          ${isSkipped ? 'opacity-50' : ''}`}
+                      >
+                        <span>{name}</span>
+                        {isSkipped && <span className="text-[9px] bg-zinc-200 text-zinc-600 px-1.5 rounded-full font-medium">ไม่ได้สั่งเจ้านี้</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {activeSupplier && (
+                  <div className={`p-3 xl:p-0 xl:pr-4 w-full xl:max-w-md shrink-0 border-t border-zinc-200 xl:border-t-0 transition-opacity duration-300 ${isCurrentSkipped ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-zinc-400 whitespace-nowrap uppercase tracking-widest hidden sm:inline-block">หมายเหตุ:</span>
+                      <input
+                        type="text"
+                        placeholder={`พิมพ์หมายเหตุถึง ${activeSupplier} (ถ้ามี)`}
+                        value={supplierRemarks[activeSupplier] || ''}
+                        onChange={(e) => setSupplierRemarks(prev => ({ ...prev, [activeSupplier]: e.target.value }))}
+                        disabled={isCurrentSkipped}
+                        className="w-full text-xs font-sans border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-black focus:ring-1 focus:ring-black bg-white transition-all placeholder:text-zinc-400 disabled:bg-zinc-50 shadow-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-zinc-50/50 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100">
+                <div className="px-6 py-4 text-sm font-bold text-center whitespace-nowrap text-zinc-400">
+                  กำลังจัดการข้อมูล Master Data...
+                </div>
+              </div>
+            )}
 
             {isMasterDataMode ? (
               <div className="flex flex-col">
@@ -445,27 +487,37 @@ export default function OrderPage() {
                                 </span>
                               </td>
 
-                              {/* 2 รอบก่อน */}
+                              {/* 💡 ประวัติย้อนหลัง 2 รอบ กลับมาแสดงผลแบบตารางคลีนๆ เหมือนเดิม */}
                               <td className="py-3 px-1">
                                 <div className="flex items-center justify-center">
                                   <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
-                                    <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_2_stock !== null ? `${item.history?.cycle_2_stock} ${unitStr}` : '-'}</span></div>
-                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_2_order !== null ? `+${item.history?.cycle_2_order} ${unitStr}` : '-'}</span></div>
+                                    <div className="text-zinc-400 truncate">
+                                      เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_2_stock !== null && item.history?.cycle_2_stock !== undefined ? String(item.history?.cycle_2_stock) : '-'}</span>
+                                      {item.history?.cycle_2_stock !== null && <span className="font-sans opacity-70 ml-0.5">{item.history?.cycle_2_quantity_unit || unitStr}</span>}
+                                    </div>
+                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">
+                                      สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_2_order !== null && item.history?.cycle_2_order !== undefined ? String(item.history?.cycle_2_order) : '-'}</span>
+                                      {item.history?.cycle_2_order !== null && <span className="font-sans opacity-70 ml-0.5">{item.history?.cycle_2_order_unit || unitStr}</span>}
+                                    </div>
                                   </div>
                                 </div>
                               </td>
 
-                              {/* 1 รอบก่อน */}
                               <td className="py-3 px-1">
                                 <div className="flex items-center justify-center">
                                   <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/60 px-1.5 text-[10px] text-left font-mono opacity-90 ring-1 ring-zinc-100">
-                                    <div className="text-zinc-500 truncate">เหลือ: <span className="text-zinc-700 font-bold">{item.history?.cycle_1_stock !== null ? `${item.history?.cycle_1_stock} ${unitStr}` : '-'}</span></div>
-                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-emerald-600 font-black">{item.history?.cycle_1_order !== null ? `+${item.history?.cycle_1_order} ${unitStr}` : '-'}</span></div>
+                                    <div className="text-zinc-500 truncate">
+                                      เหลือ: <span className="text-zinc-700 font-bold">{item.history?.cycle_1_stock !== null && item.history?.cycle_1_stock !== undefined ? String(item.history?.cycle_1_stock) : '-'}</span>
+                                      {item.history?.cycle_1_stock !== null && <span className="font-sans opacity-70 ml-0.5">{item.history?.cycle_1_quantity_unit || unitStr}</span>}
+                                    </div>
+                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">
+                                      สั่ง: <span className="text-emerald-600 font-black">{item.history?.cycle_1_order !== null && item.history?.cycle_1_order !== undefined ? String(item.history?.cycle_1_order) : '-'}</span>
+                                      {item.history?.cycle_1_order !== null && <span className="font-sans opacity-70 ml-0.5">{item.history?.cycle_1_order_unit || unitStr}</span>}
+                                    </div>
                                   </div>
                                 </div>
                               </td>
 
-                              {/* คงเหลือ (💡 ปรับปรุงให้พิมพ์ได้ + เลือกเป็น Dropdown ได้แบบเดียวกับช่องสั่งเพิ่ม) */}
                               <td className="py-3 px-2">
                                 <div className="flex items-center justify-center gap-1">
                                   <div className={`flex items-center w-20 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
@@ -488,7 +540,6 @@ export default function OrderPage() {
                                     />
                                   </div>
 
-                                  {/* Combobox หน่วยนับของฝั่งคงเหลือ (quantity_unit) */}
                                   <div className="relative group/combo-stock w-24 h-8">
                                     <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
                                       <input
@@ -537,7 +588,6 @@ export default function OrderPage() {
                                 </div>
                               </td>
 
-                              {/* สั่งเพิ่ม */}
                               <td className="py-3 px-2">
                                 <div className="flex items-center justify-center gap-1">
                                   <div className="flex items-center w-20 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
@@ -560,7 +610,6 @@ export default function OrderPage() {
                                     />
                                   </div>
 
-                                  {/* Combobox หน่วยนับของฝั่งสั่งเพิ่ม (order_unit) */}
                                   <div className="relative group/combo w-24 h-8">
                                     <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
                                       <input
