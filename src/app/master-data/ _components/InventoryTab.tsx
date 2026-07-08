@@ -2,8 +2,20 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { MasterInventoryResponse, MasterInventoryRow } from '../../../types/inventory';
+import { MasterInventoryRow } from '../../../types/inventory';
 import { useModal } from '@/context/ModalContext';
+import { extractErrorMessage } from '@/lib/error';
+
+// ประกาศ Type ให้ชัดเจนเพื่อหลีกเลี่ยง any
+interface UnitRow {
+  id: string;
+  unit_name: string;
+}
+
+interface SupplierRow {
+  id: string;
+  supplier_name: string;
+}
 
 const initialFormData = {
   id: '',
@@ -20,8 +32,11 @@ const initialFormData = {
 export function InventoryTab() {
   const { showError, showSuccess } = useModal();
   const [data, setData] = useState<MasterInventoryRow[]>([]);
-  const [units, setUnits] = useState<{ id: string; unit_name: string }[]>([]);
-  const [suppliers, setSuppliers] = useState<{ id: string; supplier_name: string }[]>([]);
+
+  // นำ Type ที่ประกาศมาใช้กับ State
+  const [units, setUnits] = useState<UnitRow[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,34 +49,39 @@ export function InventoryTab() {
       setIsLoading(true);
       const res = await apiClient.post<MasterInventoryRow[]>('/api/inventories/master', {});
       setData(Array.isArray(res) ? res : []);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching inventory master:', err);
-      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+      const message = extractErrorMessage(err, 'ไม่สามารถเรียกข้อมูลวัตถุดิบได้');
       showError(message, 'ไม่สามารถเรียกข้อมูลวัตถุดิบได้');
     } finally {
       setIsLoading(false);
     }
   }, [showError]);
+
   // ดึงข้อมูลตัวเลือก (Units & Suppliers) มาป้อนลง Dropdown Select
   const fetchMetadata = useCallback(async () => {
     try {
+      // ระบุ Type ให้กับ API Response แทนการใช้ any
       const [unitRes, supplierRes] = await Promise.all([
-        apiClient.get<{ data?: any[] } | any[]>('/api/units'),
-        apiClient.post<{ data?: any[] }>('/api/suppliers/all', { page: 1, limit: 100 })
+        apiClient.get<{ data?: UnitRow[] } | UnitRow[]>('/api/units'),
+        apiClient.post<{ data?: SupplierRow[] }>('/api/suppliers/all', { page: 1, limit: 100 })
       ]);
 
-      let cleanUnits = [];
+      // กำหนด Type ให้ตัวแปร Array
+      let cleanUnits: UnitRow[] = [];
       if (unitRes && 'data' in unitRes && Array.isArray(unitRes.data)) {
         cleanUnits = unitRes.data;
       } else if (Array.isArray(unitRes)) {
         cleanUnits = unitRes;
       }
+
       setUnits(cleanUnits);
       setSuppliers(supplierRes?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch master metadata:', err);
+    } catch (err: unknown) {
+      const message = extractErrorMessage(err, 'ไม่สามารถเรียกข้อมูลตัวเลือกได้');
+      showError(message, 'ไม่สามารถเรียกข้อมูลตัวเลือกได้');
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     fetchData();
@@ -110,16 +130,14 @@ export function InventoryTab() {
       setFormData(initialFormData);
       setIsModalOpen(false);
       fetchData();
-    } catch (err) {
-      console.error('Save failed:', err);
-      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดไม่ทราบสาเหตุจากเซิร์ฟเวอร์';
+    } catch (err: unknown) {
+      const message = extractErrorMessage(err, 'ไม่สามารถบันทึกข้อมูลวัตถุดิบได้');
       showError(message, 'ไม่สามารถบันทึกข้อมูลวัตถุดิบได้');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 💡 ฟังก์ชันลบวัตถุดิบ ยิงหา Endpoint ของคอนโทรลเลอร์โดยตรง
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`คุณต้องการลบวัตถุดิบ "${name}" ใช่หรือไม่? (การกระทำนี้ไม่สามารถย้อนคืนได้)`)) return;
 
@@ -127,10 +145,9 @@ export function InventoryTab() {
       setIsLoading(true);
       await apiClient.delete(`/api/inventories/${id}`);
       showSuccess('ลบข้อมูลวัตถุดิบออกจากระบบเรียบร้อยแล้ว');
-      fetchData(); // รีเฟรชตารางใหม่
-    } catch (err) {
-      console.error('Delete failed:', err);
-      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดไม่ทราบสาเหตุจากเซิร์ฟเวอร์';
+      fetchData();
+    } catch (err: unknown) {
+      const message = extractErrorMessage(err, 'ไม่สามารถลบข้อมูลวัตถุดิบได้');
       showError(message, 'ไม่สามารถลบข้อมูลวัตถุดิบได้');
     } finally {
       setIsLoading(false);
@@ -145,7 +162,6 @@ export function InventoryTab() {
 
   return (
     <div className="space-y-6 pt-4">
-      {/* Action Bar ค้นหาและปุ่มสร้างไอเทม */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
         <input
           type="text"
@@ -165,7 +181,6 @@ export function InventoryTab() {
         </button>
       </div>
 
-      {/* ตารางแสดงผลสไตล์โปร่งสบายตา */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-sm">
           <thead>
@@ -174,7 +189,6 @@ export function InventoryTab() {
               <th className="py-4 px-2 font-medium">ผู้จัดจำหน่าย</th>
               <th className="py-4 px-2 font-medium text-center">หน่วยนับ</th>
               <th className="py-4 px-2 font-medium text-center">จำนวนในคลัง</th>
-              <th className="py-4 px-2 font-medium text-center">ราคา/หน่วย</th>
               <th className="py-4 px-2 font-medium text-center">สถานะ</th>
               <th className="py-4 px-2 font-medium text-right">การจัดการ</th>
             </tr>
@@ -182,23 +196,21 @@ export function InventoryTab() {
           <tbody className="divide-y divide-zinc-100 text-zinc-800">
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-zinc-400 font-bold">ไม่พบข้อมูลวัตถุดิบในระบบ</td>
+                <td colSpan={6} className="py-8 text-center text-zinc-400 font-bold">ไม่พบข้อมูลวัตถุดิบในระบบ</td>
               </tr>
             ) : (
               filteredData.map((item) => (
                 <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors">
                   <td className="py-4 px-2 font-bold text-zinc-900">{item.inventory_name}</td>
                   <td className="py-4 px-2 text-zinc-600">{item.supplier?.supplier_name || '-'}</td>
-                  <td className="py-4 px-2 text-center font-mono text-zinc-600">{item.unit?.unit_name} ({item.unit?.id})</td>
+                  <td className="py-4 px-2 text-center font-mono text-zinc-600">{item.unit?.unit_name}</td>
                   <td className="py-4 px-2 text-center font-mono font-bold text-zinc-900">{item.inventory_quantity ?? 0}</td>
-                  <td className="py-4 px-2 text-center font-mono font-bold text-zinc-600">{parseFloat(item.unit_price || '0').toFixed(2)} บาท</td>
                   <td className="py-4 px-2 text-center">
                     <span className={`px-3 py-1 text-[11px] font-black rounded-full transition-all
                       ${item.status === 'ACTIVE' ? 'bg-zinc-900 text-white' : item.status === 'OUTSTOCK' ? 'bg-amber-100 text-amber-800' : 'bg-zinc-100 text-zinc-400'}`}>
                       {item.status}
                     </span>
                   </td>
-                  {/* 💡 อัปเดตคอลัมน์การจัดการให้มีปุ่ม แก้ไข และ ลบ เคียงคู่กันอย่างสวยงาม */}
                   <td className="py-4 px-2 text-right">
                     <div className="flex justify-end gap-2">
                       <button
@@ -222,7 +234,6 @@ export function InventoryTab() {
         </table>
       </div>
 
-      {/* Popup Form Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <form onSubmit={handleSave} className="bg-white rounded-2xl border border-zinc-200 w-full max-w-md p-6 space-y-4 shadow-xl">
@@ -253,19 +264,6 @@ export function InventoryTab() {
                   className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50"
                 />
               </div>
-              {/* <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500">ราคาต่อหน่วย (บาท) *</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  disabled={isSubmitting}
-                  value={formData.unit_price}
-                  onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
-                  className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50"
-                />
-              </div> */}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -279,7 +277,7 @@ export function InventoryTab() {
                   className="w-full border border-zinc-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:border-black font-bold disabled:bg-zinc-50"
                 >
                   <option value="">เลือกหน่วยนับ</option>
-                  {units.map(u => <option key={u.id} value={u.id}>{u.unit_name} ({u.id})</option>)}
+                  {units.map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

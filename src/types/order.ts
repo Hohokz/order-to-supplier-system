@@ -48,10 +48,13 @@ export interface ApiResponse {
 export interface OrderHistory {
   cycle_1_stock: number | null;
   cycle_1_order: number | null;
+  cycle_1_date?: string | Date | null;
   cycle_2_stock: number | null;
   cycle_2_order: number | null;
+  cycle_2_date?: string | Date | null;
   cycle_3_stock: number | null;
   cycle_3_order: number | null;
+  cycle_3_date?: string | Date | null;
 }
 
 export type OrderItemWithHistory = OrderItem & {

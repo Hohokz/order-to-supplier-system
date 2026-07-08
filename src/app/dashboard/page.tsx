@@ -10,6 +10,7 @@ import { OrderWithItems, ApiResponse } from '@/types/order';
 import { Sidebar } from './_components/Sidebar';
 import { OrderTable } from './_components/OrderTable';
 import { OrderModal } from './_components/OrderModal';
+import { extractErrorMessage } from '@/lib/error';
 
 // 🚀 1. สร้าง Type สำหรับประวัติ
 type OrderHistory = {
@@ -93,7 +94,7 @@ function DashboardContent() {
 
     } catch (err: unknown) {
       console.error('Approve failure:', err);
-      const message = err instanceof Error ? err.message : 'ระบบไม่สามารถอนุมัติรายการได้';
+      const message = extractErrorMessage(err, 'เกิดความผิดพลาด');
       setError(message);
       throw err;
     }
@@ -160,7 +161,8 @@ function DashboardContent() {
         setTotalPages(result.totalPages || 1);
         setTotalItems(result.total || 0);
       } catch (err: unknown) {
-        if (err instanceof Error) setError(err.message);
+        const errorMessage = extractErrorMessage(err, 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+        setError(errorMessage);
         setOrders(mockApiResponse.data);
         setTotalPages(mockApiResponse.totalPages);
         setTotalItems(mockApiResponse.total);

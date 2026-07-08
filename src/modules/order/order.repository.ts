@@ -17,10 +17,19 @@ export interface ItemHistoryRow {
     inventory_id: string;
     cycle_1_stock: number | null;
     cycle_1_order: number | null;
+    cycle_1_quantity_unit: string | null; // 💡 เพิ่มเติม
+    cycle_1_order_unit: string | null;
+    cycle_1_date?: string | Date | null;
     cycle_2_stock: number | null;
     cycle_2_order: number | null;
+    cycle_2_quantity_unit: string | null; // 💡 เพิ่มเติม
+    cycle_2_order_unit: string | null;
+    cycle_2_date?: string | Date | null;
     cycle_3_stock: number | null;
     cycle_3_order: number | null;
+    cycle_3_quantity_unit: string | null; // 💡 เพิ่มเติม
+    cycle_3_order_unit: string | null;
+    cycle_3_date?: string | Date | null;
 }
 
 export const orderRepository = {
@@ -62,6 +71,8 @@ export const orderRepository = {
                             'supplier_name', s.supplier_name,
                             'unit', u.id,
                             'unit_name', u.unit_name,
+                            'order_unit', oi.order_unit,
+                            'quantity_unit', oi.quantity_unit,
                             'quantity', oi.quantity, 
                             'order_quantity', oi.order_quantity,
                             'approve_status', oi.approve_status,
@@ -105,29 +116,42 @@ export const orderRepository = {
 
     async getRecentOrderHistory(): Promise<ItemHistoryRow[]> {
         const sql = `
-      WITH RankedOrders AS (
+        WITH RankedOrders AS (
+            SELECT 
+            oi.inventory_id,
+            oi.quantity as stock_qty,
+            oi.order_quantity as order_qty,
+            oi.quantity_unit as quantity_unit, -- ดึงหน่วยคงเหลือ ณ ตอนนั้น
+            oi.order_unit as order_unit,       -- ดึงหน่วยสั่งซื้อ ณ ตอนนั้น
+            o.created_date,
+            ROW_NUMBER() OVER(PARTITION BY oi.inventory_id ORDER BY o.created_date DESC) as rn
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE oi.order_quantity > 0
+        )
         SELECT 
-          oi.inventory_id,
-          oi.quantity as stock_qty,
-          oi.order_quantity as order_qty,
-          o.created_date,
-          ROW_NUMBER() OVER(PARTITION BY oi.inventory_id ORDER BY o.created_date DESC) as rn
-        FROM order_items oi
-        JOIN orders o ON oi.order_id = o.id
-        WHERE oi.order_quantity > 0
-      )
-      SELECT 
-        inventory_id::text,
-        MAX(CASE WHEN rn = 1 THEN stock_qty END) as cycle_1_stock,
-        MAX(CASE WHEN rn = 1 THEN order_qty END) as cycle_1_order,
-        MAX(CASE WHEN rn = 2 THEN stock_qty END) as cycle_2_stock,
-        MAX(CASE WHEN rn = 2 THEN order_qty END) as cycle_2_order,
-        MAX(CASE WHEN rn = 3 THEN stock_qty END) as cycle_3_stock,
-        MAX(CASE WHEN rn = 3 THEN order_qty END) as cycle_3_order
-      FROM RankedOrders
-      WHERE rn <= 3
-      GROUP BY inventory_id;
-    `;
+            inventory_id::text,
+            MAX(CASE WHEN rn = 1 THEN stock_qty END) as cycle_1_stock,
+            MAX(CASE WHEN rn = 1 THEN order_qty END) as cycle_1_order,
+            MAX(CASE WHEN rn = 1 THEN quantity_unit END) as cycle_1_quantity_unit,
+            MAX(CASE WHEN rn = 1 THEN order_unit END) as cycle_1_order_unit,
+            MAX(CASE WHEN rn = 1 THEN created_date END) as cycle_1_date,
+            
+            MAX(CASE WHEN rn = 2 THEN stock_qty END) as cycle_2_stock,
+            MAX(CASE WHEN rn = 2 THEN order_qty END) as cycle_2_order,
+            MAX(CASE WHEN rn = 2 THEN quantity_unit END) as cycle_2_quantity_unit,
+            MAX(CASE WHEN rn = 2 THEN order_unit END) as cycle_2_order_unit,
+            MAX(CASE WHEN rn = 2 THEN created_date END) as cycle_2_date,
+            
+            MAX(CASE WHEN rn = 3 THEN stock_qty END) as cycle_3_stock,
+            MAX(CASE WHEN rn = 3 THEN order_qty END) as cycle_3_order,
+            MAX(CASE WHEN rn = 3 THEN quantity_unit END) as cycle_3_quantity_unit,
+            MAX(CASE WHEN rn = 3 THEN order_unit END) as cycle_3_order_unit,
+            MAX(CASE WHEN rn = 3 THEN created_date END) as cycle_3_date
+        FROM RankedOrders
+        WHERE rn <= 3
+        GROUP BY inventory_id;
+        `;
 
         const result = await query<ItemHistoryRow>(sql, []);
         return result.rows;
@@ -147,11 +171,11 @@ export const orderRepository = {
             const newOrderId = orderRes.rows[0].id;
 
             const itemSql = `
-            INSERT INTO order_items (order_id, inventory_id, quantity, order_quantity, delivery_when, approve_status, supplier_id)
-            VALUES ($1, $2, $3, $4, $5, 'PENDING', (SELECT supplier_id FROM inventories WHERE id = $2));
+            INSERT INTO order_items (order_id, inventory_id, quantity, order_quantity, approve_status, supplier_id, order_unit, quantity_unit)
+            VALUES ($1, $2, $3, $4, 'PENDING', (SELECT supplier_id FROM inventories WHERE id = $2), $5, $6);
         `;
             for (const item of data.items) {
-                await client.query(itemSql, [newOrderId, item.inventory_id, item.quantity, item.order_quantity, item.delivery_when]);
+                await client.query(itemSql, [newOrderId, item.inventory_id, item.quantity, item.order_quantity, item.order_unit, item.quantity_unit]);
             }
 
             const dtoSql = `
@@ -168,6 +192,7 @@ export const orderRepository = {
                          'unit', u.id,
                          'unit_name', u.unit_name,
                          'quantity', oi.quantity, 
+                         'quantity_unit', oi.quantity_unit,
                          'order_quantity', oi.order_quantity,
                          'delivery_when', oi.delivery_when,
                          'approve_status', oi.approve_status,

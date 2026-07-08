@@ -12,4 +12,6 @@ export interface OrderItem extends QueryResultRow {
     approve_date: Date;
     remark: string;
     delivery_when: string;
+    order_unit: string;
+    quantity_unit: string;
 }

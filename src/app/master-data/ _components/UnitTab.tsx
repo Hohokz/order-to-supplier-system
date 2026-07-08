@@ -5,8 +5,8 @@ import { apiClient } from '@/lib/api-client';
 import { useModal } from '@/context/ModalContext';
 
 interface UnitRow {
-    id: string; // ตัวอย่างเช่น KG, BOX, PACK
-    unit_name: string; // ตัวอย่างเช่น กิโลกรัม, กล่อง, แพ็ค
+    id: string;
+    unit_name: string;
 }
 
 export function UnitTab() {
@@ -14,12 +14,11 @@ export function UnitTab() {
     const [data, setData] = useState<UnitRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [searchTerm, setSearchTerm] = useState(''); // 💡 เพิ่ม State สำหรับช่องค้นหาให้เข้าเซ็ต
+    const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
     const [formData, setFormData] = useState({ id: '', unit_name: '' });
 
-    // 💡 ครอบฟังก์ชันด้วย useCallback เพื่อผ่านกฎเกณฑ์ความปลอดภัยของ ESLint 100%
     const fetchData = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -52,9 +51,8 @@ export function UnitTab() {
         try {
             setIsSubmitting(true);
 
-            // 💡 แปลงร่างโครงสร้างข้อมูลให้ตรงล็อกตามที่ Zod หลังบ้านต้องการ (เปลี่ยน id เป็น unit)
+            // ส่งข้อมูลไปเฉพาะ unit_name เนื่องจาก ID ถูก Auto Gen แล้ว
             const payload = {
-                unit: formData.id,
                 unit_name: formData.unit_name
             };
 
@@ -69,16 +67,15 @@ export function UnitTab() {
             fetchData();
         } catch (err) {
             console.error(err);
-            const message = err instanceof Error ? err.message : 'ไม่สามารถบันทึกหน่วยนับได้ รหัส ID นี้อาจมีอยู่แล้วในระบบ';
+            const message = err instanceof Error ? err.message : 'ไม่สามารถบันทึกหน่วยนับได้';
             showError(message, 'ไม่สามารถบันทึกข้อมูลได้');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // 💡 เพิ่มฟังก์ชันลบตาม Pattern ความปลอดภัย พร้อมแจ้งเตือนก่อนลบ
     const handleDelete = async (id: string, name: string) => {
-        if (!window.confirm(`คุณต้องการลบหน่วยนับ "${name}" (${id}) ใช่หรือไม่?`)) return;
+        if (!window.confirm(`คุณต้องการลบหน่วยนับ "${name}" ใช่หรือไม่?`)) return;
         try {
             setIsLoading(true);
             await apiClient.delete(`/api/units/${id}`);
@@ -93,7 +90,6 @@ export function UnitTab() {
         }
     };
 
-    // 💡 ลอจิกคัดกรองข้อมูลหน่วยนับสำหรับกล่องค้นหาแบบ Real-time
     const filteredData = data.filter(item =>
         item.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.id?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -101,7 +97,6 @@ export function UnitTab() {
 
     return (
         <div className="space-y-6 pt-4">
-            {/* Action Bar ค้นหาและปุ่มสร้างไอเทม สไตล์ Clean UI มนแคปซูล */}
             <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
                 <input
                     type="text"
@@ -118,12 +113,11 @@ export function UnitTab() {
                 </button>
             </div>
 
-            {/* ตารางหน่วยนับ: โปร่งโล่ง ไม่มีพื้นหลังเทาและกรอบทึบล้อมรอบ */}
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr className="border-b border-zinc-200 text-zinc-400">
-                            <th className="py-4 px-2 font-medium w-1/3">รหัสหน่วย (UNIT ID)</th>
+                            {/* <th className="py-4 px-2 font-medium w-1/3">รหัสหน่วย (UNIT ID)</th> */}
                             <th className="py-4 px-2 font-medium">ชื่อหน่วยนับ</th>
                             <th className="py-4 px-2 font-medium text-right">การจัดการ</th>
                         </tr>
@@ -140,7 +134,7 @@ export function UnitTab() {
                         ) : (
                             filteredData.map((item) => (
                                 <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors">
-                                    <td className="py-4 px-2 font-bold text-zinc-900 tracking-wider">{item.id}</td>
+                                    {/* <td className="py-4 px-2 font-bold text-zinc-900 tracking-wider">{item.id}</td> */}
                                     <td className="py-4 px-2 text-zinc-600 font-medium">{item.unit_name}</td>
                                     <td className="py-4 px-2 text-right">
                                         <div className="flex justify-end gap-2">
@@ -165,23 +159,24 @@ export function UnitTab() {
                 </table>
             </div>
 
-            {/* Popup Form Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
                     <form onSubmit={handleSave} className="bg-white rounded-2xl border border-zinc-200 w-full max-w-xs p-6 space-y-4 shadow-xl">
                         <h3 className="text-sm font-black border-b pb-2">{isEditMode ? 'แก้ไขหน่วยนับ' : 'เพิ่มหน่วยนับ'}</h3>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-zinc-500">รหัสหน่วย (อังกฤษตัวพิมพ์ใหญ่) *</label>
-                            <input
-                                type="text"
-                                required
-                                disabled={isEditMode || isSubmitting}
-                                placeholder="เช่น KG, PCS, BOX"
-                                value={formData.id}
-                                onChange={(e) => setFormData({ ...formData, id: e.target.value.toUpperCase() })}
-                                className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-bold font-mono uppercase disabled:bg-zinc-50 disabled:text-zinc-400"
-                            />
-                        </div>
+
+                        {/* แสดงฟิลด์นี้เฉพาะตอนแก้ไข เพื่อใช้อ้างอิง ID
+                        {isEditMode && (
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-zinc-500">รหัสหน่วย (UNIT ID)</label>
+                                <input
+                                    type="text"
+                                    disabled
+                                    value={formData.id}
+                                    className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs font-bold font-mono bg-zinc-50 text-zinc-400"
+                                />
+                            </div>
+                        )} */}
+
                         <div className="space-y-1">
                             <label className="text-[10px] font-bold text-zinc-500">ชื่อหน่วยนับ (ภาษาไทย) *</label>
                             <input

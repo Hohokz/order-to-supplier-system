@@ -8,36 +8,39 @@ import { useModal } from '@/context/ModalContext';
 import { Sidebar } from '../dashboard/_components/Sidebar';
 import { MasterInventoryRow, MasterInventoryResponse } from '@/types/inventory';
 
-// 🚀 Master data management components (reused from the master-data dashboard page)
-// NOTE: adjust this path if your actual folder structure differs
 import { InventoryTab } from '@/app/master-data/ _components/InventoryTab';
 import { SupplierTab } from '@/app/master-data/ _components/SupplierTab';
 import { UnitTab } from '@/app/master-data/ _components/UnitTab';
-// 🚀 ไม่ import UserTab ในหน้านี้ เพราะผู้ใช้หน้า Order เป็น OBSERVER เท่านั้น
-// ห้ามให้เข้าถึงการจัดการสิทธิ์ผู้ใช้งานจากหน้านี้โดยเด็ดขาด
+import { extractErrorMessage } from '@/lib/error';
 
 type OrderHistory = {
   cycle_1_stock: number | null;
   cycle_1_order: number | null;
+  cycle_1_date?: string | Date | null;
   cycle_2_stock: number | null;
   cycle_2_order: number | null;
+  cycle_2_date?: string | Date | null;
   cycle_3_stock: number | null;
   cycle_3_order: number | null;
+  cycle_3_date?: string | Date | null;
 };
 
 type FormItemType = MasterInventoryRow & {
-  seq: number; // เพิ่มเข้าไปตรงนี้เลยครับ
+  seq: number;
   quantity: number | string;
   order_quantity: number | string;
+  quantity_unit?: string; // 💡 เก็บค่าชื่อหน่วยที่เลือก/พิมพ์สำหรับช่อง "คงเหลือ"
+  order_unit?: string;    // เก็บค่าชื่อหน่วยที่เลือก/พิมพ์สำหรับช่อง "สั่งเพิ่ม"
   safety_quantity?: number | string;
   history?: OrderHistory;
 };
 
-// 🚀 Sentinel tab id used to represent the "จัดการข้อมูลหลัก" (master data) tab
-// within the same tab bar as the suppliers, so it can never collide with a real supplier name.
-const MASTER_DATA_TAB = '__MASTER_DATA__';
+type UnitType = {
+  id: string;
+  unit_name: string;
+};
 
-// 🚀 ไม่มี 'user' ในหน้านี้ เพราะผู้ใช้หน้า Order เป็น OBSERVER เท่านั้น
+const MASTER_DATA_TAB = '__MASTER_DATA__';
 type MasterSubTabType = 'inventory' | 'supplier' | 'unit';
 
 export default function OrderPage() {
@@ -46,14 +49,10 @@ export default function OrderPage() {
   const router = useRouter();
 
   const [items, setItems] = useState<FormItemType[]>([]);
+  const [units, setUnits] = useState<UnitType[]>([]);
   const [signature, setSignature] = useState<string>('');
-  const [deliveryWhen, setDeliveryWhen] = useState<string>('');
   const [activeSupplier, setActiveSupplier] = useState<string>('');
-
-  // 🚀 เพิ่ม State สำหรับเก็บว่าซัพพลายเออร์เจ้าไหนถูกข้ามบ้าง
   const [skippedSuppliers, setSkippedSuppliers] = useState<string[]>([]);
-
-  // 🚀 State สำหรับแท็บย่อยภายในโหมด "จัดการข้อมูลหลัก"
   const [masterSubTab, setMasterSubTab] = useState<MasterSubTabType>('inventory');
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -72,18 +71,27 @@ export default function OrderPage() {
     const fetchInitialItems = async () => {
       try {
         setIsLoading(true);
-        const [masterResult, historyResult] = await Promise.all([
-          apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {}), // ลองปรับ type เป็น any ก่อน
-          apiClient.get<Record<string, OrderHistory>>('/api/orders/history')
+
+        const [masterResult, historyResult, unitsResult] = await Promise.all([
+          apiClient.post<MasterInventoryResponse[]>('/api/inventories/master', {}),
+          apiClient.get<Record<string, OrderHistory>>('/api/orders/history'),
+          apiClient.get<{ data?: UnitType[] } | UnitType[]>('/api/units').catch(() => [])
         ]);
 
         const targetRows = Array.isArray(masterResult) ? masterResult : [];
         const historyMap = historyResult || {};
 
-        // 3. Map ข้อมูลให้ตรงกับ FormItemType
+        let finalUnits: UnitType[] = [];
+        if (Array.isArray(unitsResult)) {
+          finalUnits = unitsResult;
+        } else if (unitsResult && Array.isArray(unitsResult.data)) {
+          finalUnits = unitsResult.data;
+        }
+        setUnits(finalUnits);
+
         const itemsWithFormState: FormItemType[] = targetRows.map((row) => {
-          // แก้ไขตรงนี้ครับ
           const inventoryRow = row as unknown as MasterInventoryRow;
+          const defaultUnitName = inventoryRow.unit?.unit_name || '';
 
           return {
             id: inventoryRow.id,
@@ -98,6 +106,8 @@ export default function OrderPage() {
             created_date: inventoryRow.created_date,
             quantity: '',
             order_quantity: '',
+            quantity_unit: defaultUnitName, // 💡 เริ่มต้นใช้หน่วยนับหลักของวัตถุดิบ
+            order_unit: defaultUnitName,    // เริ่มต้นใช้หน่วยนับหลักของวัตถุดิบ
             history: historyMap[inventoryRow.id] || {
               cycle_1_stock: null, cycle_1_order: null,
               cycle_2_stock: null, cycle_2_order: null,
@@ -109,7 +119,7 @@ export default function OrderPage() {
         setItems(itemsWithFormState);
       } catch (err: unknown) {
         console.error(err);
-        const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+        const errorMessage = extractErrorMessage(err, 'ไม่สามารถดึงข้อมูลสินค้าได้');
         showError(errorMessage, 'ไม่สามารถดึงข้อมูลสินค้าได้');
       } finally {
         setIsLoading(false);
@@ -150,15 +160,20 @@ export default function OrderPage() {
     );
   };
 
-  // 🚀 ฟังก์ชันสำหรับสลับสถานะข้าม/ไม่ข้าม
+  // 💡 ฟังก์ชันควบคุมการเปลี่ยนชื่อหน่วยนับแบบไดนามิกแยกฟิลด์อิสระ
+  const handleUnitTextChange = (itemId: string, field: 'quantity_unit' | 'order_unit', newText: string) => {
+    setItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === itemId ? { ...item, [field]: newText } : item
+      )
+    );
+  };
+
   const handleToggleSkipSupplier = () => {
     if (skippedSuppliers.includes(activeSupplier)) {
-      // กรณีกดซ้ำ (ต้องการเปิดใหม่)
       setSkippedSuppliers(prev => prev.filter(s => s !== activeSupplier));
     } else {
-      // กรณีต้องการข้าม
       setSkippedSuppliers(prev => [...prev, activeSupplier]);
-      // ล้างค่าข้อมูลของซัพพลายเออร์เจ้านี้
       setItems((prev) =>
         prev.map((item) => {
           const supplierName = item.supplier?.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
@@ -184,7 +199,6 @@ export default function OrderPage() {
 
     const filteredItems = items.filter((item) => {
       const supplierName = item.supplier?.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
-      // 🚀 เพิ่มเงื่อนไขเช็คว่าห้ามเอา Supplier ที่อยู่ใน skippedSuppliers มาด้วย
       if (skippedSuppliers.includes(supplierName)) return false;
 
       const orderNum = Number(item.order_quantity);
@@ -215,12 +229,20 @@ export default function OrderPage() {
 
       const payload = {
         signature: signature.trim(),
-        items: filteredItems.map(item => ({
-          inventory_id: item.id,
-          quantity: Number(item.quantity),
-          order_quantity: Number(item.order_quantity),
-          delivery_when: deliveryWhen.trim() || 'IMMEDIATE'
-        }))
+        items: filteredItems.map(item => {
+          const defaultUnitName = item.unit?.unit_name || '';
+          const currentQuantityUnit = item.quantity_unit?.trim() || defaultUnitName;
+          const currentOrderUnit = item.order_unit?.trim() || defaultUnitName;
+
+          return {
+            inventory_id: item.id,
+            quantity: Number(item.quantity),
+            order_quantity: Number(item.order_quantity),
+            // 💡 แนบค่าชื่อหน่วยนับของแต่ละฝั่งส่งไปบันทึกยัง Database หลังบ้าน
+            quantity_unit: currentQuantityUnit,
+            order_unit: currentOrderUnit
+          };
+        })
       };
 
       await apiClient.post('/api/orders', payload);
@@ -229,11 +251,16 @@ export default function OrderPage() {
       setMessage({ type: 'success', text: successText });
       showSuccess(successText);
       setSignature('');
-      setDeliveryWhen('IMMEDIATE');
-      setSkippedSuppliers([]); // รีเซ็ตการข้ามทั้งหมดเมื่อส่งสำเร็จ
-      setItems(prev => prev.map(item => ({ ...item, quantity: '', order_quantity: '' })));
+      setSkippedSuppliers([]);
+      setItems(prev => prev.map(item => ({
+        ...item,
+        quantity: '',
+        order_quantity: '',
+        quantity_unit: item.unit?.unit_name || '',
+        order_unit: item.unit?.unit_name || ''
+      })));
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+      const errorMessage = extractErrorMessage(err, 'ไม่สามารถบันทึกคำสั่งซื้อได้');
       setMessage({ type: 'error', text: errorMessage });
       showError(errorMessage, 'ไม่สามารถบันทึกคำสั่งซื้อได้');
     } finally {
@@ -252,21 +279,22 @@ export default function OrderPage() {
   if (!isAuthenticated) return null;
 
   const currentItems = groupedItems[activeSupplier] || [];
-
-  // 🚀 เช็คว่าแท็บปัจจุบันถูกข้ามอยู่หรือไม่
+  const cycle1Date = currentItems.find(item => item.history?.cycle_1_date)?.history?.cycle_1_date;
+  const cycle2Date = currentItems.find(item => item.history?.cycle_2_date)?.history?.cycle_2_date;
   const isCurrentSkipped = skippedSuppliers.includes(activeSupplier);
-
-  // 🚀 เช็คว่ากำลังอยู่ในโหมด "จัดการข้อมูลหลัก" หรือไม่
   const isMasterDataMode = activeSupplier === MASTER_DATA_TAB;
 
-  // 🚀 แท็บย่อยของโหมดจัดการข้อมูลหลัก
-  // ไม่มีแท็บ "สิทธิ์ผู้ใช้งาน" ในหน้านี้เด็ดขาด เพราะผู้ใช้หน้า Order คือ OBSERVER เท่านั้น
-  // การจัดการสิทธิ์ผู้ใช้งานยังคงอยู่แค่ในหน้า Master Data Dashboard หลัก (สำหรับ APPROVER)
   const masterSubTabs: { id: MasterSubTabType; label: string }[] = [
     { id: 'inventory', label: 'คลังสินค้า' },
     { id: 'supplier', label: 'ผู้จัดจำหน่าย' },
     { id: 'unit', label: 'หน่วยนับ' },
   ];
+
+  const displayTodayDate = new Date().toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-zinc-50 text-zinc-900 font-sans">
@@ -282,14 +310,11 @@ export default function OrderPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* 🚀 ปุ่มจัดการข้อมูลหลัก ย้ายมาไว้หน้าปุ่มออกจากระบบ */}
             <button
               type="button"
-              onClick={() =>
-                setActiveSupplier(isMasterDataMode ? (supplierNames[0] ?? '') : MASTER_DATA_TAB)
-              }
+              onClick={() => setActiveSupplier(isMasterDataMode ? (supplierNames[0] ?? '') : MASTER_DATA_TAB)}
               className={`flex items-center gap-2 px-5 py-2 rounded-full border text-xs font-bold shadow-sm transition-all
-        ${isMasterDataMode
+                ${isMasterDataMode
                   ? 'bg-black text-white border-black hover:bg-zinc-800'
                   : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:text-black'}`}
             >
@@ -332,7 +357,6 @@ export default function OrderPage() {
                       ${isSkipped ? 'opacity-50' : ''}`}
                   >
                     <span>{name}</span>
-                    {/* ขีดฆ่าหรือขึ้นป้ายบอกว่าข้ามเจ้านี้ */}
                     {isSkipped && <span className="text-[9px] bg-zinc-200 text-zinc-600 px-1.5 rounded-full font-medium">ไม่ได้สั่งเจ้านี้</span>}
                   </button>
                 );
@@ -340,7 +364,6 @@ export default function OrderPage() {
             </div>
 
             {isMasterDataMode ? (
-              // 🚀 โหมดจัดการข้อมูลหลัก: แท็บย่อย + คอมโพเนนต์จัดการข้อมูล
               <div className="flex flex-col">
                 <div className="bg-zinc-50 border-b border-zinc-200 flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-200">
                   {masterSubTabs.map((tab) => {
@@ -366,38 +389,44 @@ export default function OrderPage() {
                 </div>
               </div>
             ) : (
-              // 🚀 โหมดจัดทำคำสั่งซื้อ (เดิม) — <form> อยู่แค่ตรงนี้ ไม่ครอบคลุมส่วนจัดการข้อมูลหลัก
-              // เพื่อป้องกัน <form> ซ้อน <form> (InventoryTab/SupplierTab/UnitTab มี modal ที่เป็น <form> ของตัวเอง)
               <form onSubmit={handleSubmitOrder}>
                 <div className="p-2 md:p-6">
                   <div className="overflow-x-auto">
-                    {/* 🚀 เพิ่มคลาส disable ตารางเมื่อถูกข้าม */}
                     <table className={`w-full text-left border-collapse text-sm transition-all duration-300 ${isCurrentSkipped ? 'opacity-40 pointer-events-none grayscale select-none' : ''}`}>
                       <thead>
                         <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
                           <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
-                          <th className="py-4 px-2 font-medium w-24">3 รอบก่อน</th>
-                          <th className="py-4 px-2 font-medium w-24">2 รอบก่อน</th>
-                          <th className="py-4 px-2 font-medium w-24">1 รอบก่อน</th>
-                          <th className="py-4 px-2 font-medium text-zinc-900 w-28">คงเหลือ *</th>
-                          <th className="py-4 px-2 font-black text-black w-28">สั่งเพิ่ม *</th>
+                          <th className="py-4 px-2 font-medium w-24">
+                            <div>2 รอบก่อน</div>
+                            {cycle2Date && (
+                              <div className="text-[10px] text-zinc-400 font-mono mt-0.5 font-normal whitespace-nowrap">
+                                ({new Date(cycle2Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })})
+                              </div>
+                            )}
+                          </th>
+                          <th className="py-4 px-2 font-medium w-24">
+                            <div>1 รอบก่อน</div>
+                            {cycle1Date && (
+                              <div className="text-[10px] text-zinc-400 font-mono mt-0.5 font-normal whitespace-nowrap">
+                                ({new Date(cycle1Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })})
+                              </div>
+                            )}
+                          </th>
+                          <th className="py-4 px-2 font-medium text-zinc-900 w-44">คงเหลือ *</th>
+                          <th className="py-4 px-2 font-black text-black w-44">สั่งเพิ่ม *</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100 text-zinc-800">
                         {currentItems.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="py-10 text-center text-zinc-400 text-xs">
+                            <td colSpan={5} className="py-10 text-center text-zinc-400 text-xs">
                               ไม่พบรายการสินค้าสำหรับซัพพลายเออร์เจ้านี้
                             </td>
                           </tr>
                         )}
                         {currentItems.map((item) => {
                           const currentCount = Number(item.quantity);
-
-                          const safetyLimitNum = typeof item.safety_quantity === 'number'
-                            ? item.safety_quantity
-                            : Number(item.safety_quantity) || 0;
-
+                          const safetyLimitNum = typeof item.safety_quantity === 'number' ? item.safety_quantity : Number(item.safety_quantity) || 0;
                           const hasInputtedStock = item.quantity !== '';
                           const isBelowSafety = !isNaN(currentCount) && currentCount < safetyLimitNum;
 
@@ -414,24 +443,6 @@ export default function OrderPage() {
                                 <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
                                   {item.inventory_name}
                                 </span>
-                                <div className="flex items-center gap-1.5 mt-0.5 text-[9px] font-medium text-zinc-400 font-mono">
-                                  {/* <span>ID: {item.id.slice(0, 8).toUpperCase()}</span> */}
-                                  {safetyLimitNum > 0 && (
-                                    <span className={`px-1 rounded-sm font-sans scale-90 origin-left font-bold ${(isBelowSafety && !isCurrentSkipped) ? 'bg-red-200 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                      Min: {safetyLimitNum}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-
-                              {/* 3 รอบก่อน */}
-                              <td className="py-3 px-1">
-                                <div className="flex items-center justify-center">
-                                  <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
-                                    <div className="text-zinc-400 truncate">เหลือ: <span className="text-zinc-600 font-bold">{item.history?.cycle_3_stock !== null ? `${item.history?.cycle_3_stock} ${unitStr}` : '-'}</span></div>
-                                    <div className="text-zinc-400 border-t border-zinc-200/60 mt-0.5 pt-0.5 truncate">สั่ง: <span className="text-zinc-500 font-medium">{item.history?.cycle_3_order !== null ? `+${item.history?.cycle_3_order} ${unitStr}` : '-'}</span></div>
-                                  </div>
-                                </div>
                               </td>
 
                               {/* 2 รอบก่อน */}
@@ -454,10 +465,10 @@ export default function OrderPage() {
                                 </div>
                               </td>
 
-                              {/* คงเหลือ */}
+                              {/* คงเหลือ (💡 ปรับปรุงให้พิมพ์ได้ + เลือกเป็น Dropdown ได้แบบเดียวกับช่องสั่งเพิ่ม) */}
                               <td className="py-3 px-2">
-                                <div className="flex items-center justify-center">
-                                  <div className={`flex items-center w-24 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
+                                <div className="flex items-center justify-center gap-1">
+                                  <div className={`flex items-center w-20 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
                                     <input
                                       type="text"
                                       inputMode="decimal"
@@ -465,19 +476,71 @@ export default function OrderPage() {
                                       value={item.quantity}
                                       onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
                                       disabled={isCurrentSkipped}
+                                      onFocus={() => {
+                                        handleNumberChange(item.id, 'quantity', '');
+                                      }}
+                                      onBlur={() => {
+                                        if (item.quantity === '') {
+                                          handleNumberChange(item.id, 'quantity', '0');
+                                        }
+                                      }}
                                       className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent disabled:bg-transparent"
                                     />
-                                    <span className="text-[10px] font-bold text-zinc-400 select-none border-l border-zinc-100 pl-1.5 truncate">
-                                      {unitStr}
-                                    </span>
+                                  </div>
+
+                                  {/* Combobox หน่วยนับของฝั่งคงเหลือ (quantity_unit) */}
+                                  <div className="relative group/combo-stock w-24 h-8">
+                                    <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
+                                      <input
+                                        type="text"
+                                        value={item.quantity_unit || ''}
+                                        disabled={isCurrentSkipped}
+                                        onChange={(e) => handleUnitTextChange(item.id, 'quantity_unit', e.target.value)}
+                                        placeholder={unitStr}
+                                        onFocus={() => {
+                                          handleUnitTextChange(item.id, 'quantity_unit', '');
+                                        }}
+                                        onBlur={() => {
+                                          setTimeout(() => {
+                                            if (!item.quantity_unit) {
+                                              handleUnitTextChange(item.id, 'quantity_unit', unitStr);
+                                            }
+                                          }, 150);
+                                        }}
+                                        className="w-full text-center font-sans text-[10px] font-black focus:outline-none bg-transparent pr-2 animate-none"
+                                      />
+                                      <span className="text-[7px] text-zinc-400 pointer-events-none select-none">▼</span>
+                                    </div>
+
+                                    {!isCurrentSkipped && (
+                                      <div className="absolute left-0 top-full mt-1 w-full max-h-32 overflow-y-auto bg-white border border-zinc-200 rounded-lg shadow-lg hidden group-focus-within/combo-stock:block hover:block z-50 divide-y divide-zinc-50 scrollbar-none">
+                                        <button
+                                          type="button"
+                                          onMouseDown={() => handleUnitTextChange(item.id, 'quantity_unit', unitStr)}
+                                          className="w-full text-center py-1.5 px-1 text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 transition-colors block truncate"
+                                        >
+                                          {unitStr}
+                                        </button>
+                                        {units.filter((u) => u.unit_name !== unitStr).map((u) => (
+                                          <button
+                                            key={u.id}
+                                            type="button"
+                                            onMouseDown={() => handleUnitTextChange(item.id, 'quantity_unit', u.unit_name)}
+                                            className="w-full text-center py-1.5 px-1 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-black transition-colors block truncate"
+                                          >
+                                            {u.unit_name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </td>
 
                               {/* สั่งเพิ่ม */}
                               <td className="py-3 px-2">
-                                <div className="flex items-center justify-center">
-                                  <div className="flex items-center w-24 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
+                                <div className="flex items-center justify-center gap-1">
+                                  <div className="flex items-center w-20 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
                                     <input
                                       type="text"
                                       inputMode="decimal"
@@ -485,11 +548,63 @@ export default function OrderPage() {
                                       value={item.order_quantity}
                                       onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
                                       disabled={isCurrentSkipped}
+                                      onFocus={() => {
+                                        handleNumberChange(item.id, 'order_quantity', '');
+                                      }}
+                                      onBlur={() => {
+                                        if (item.order_quantity === '') {
+                                          handleNumberChange(item.id, 'order_quantity', '0');
+                                        }
+                                      }}
                                       className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent disabled:bg-transparent"
                                     />
-                                    <span className="text-[10px] font-black text-black select-none border-l border-zinc-200 pl-1.5 truncate">
-                                      {unitStr}
-                                    </span>
+                                  </div>
+
+                                  {/* Combobox หน่วยนับของฝั่งสั่งเพิ่ม (order_unit) */}
+                                  <div className="relative group/combo w-24 h-8">
+                                    <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
+                                      <input
+                                        type="text"
+                                        value={item.order_unit || ''}
+                                        disabled={isCurrentSkipped}
+                                        onChange={(e) => handleUnitTextChange(item.id, 'order_unit', e.target.value)}
+                                        placeholder={unitStr}
+                                        onFocus={() => {
+                                          handleUnitTextChange(item.id, 'order_unit', '');
+                                        }}
+                                        onBlur={() => {
+                                          setTimeout(() => {
+                                            if (!item.order_unit) {
+                                              handleUnitTextChange(item.id, 'order_unit', unitStr);
+                                            }
+                                          }, 150);
+                                        }}
+                                        className="w-full text-center font-sans text-[10px] font-black focus:outline-none bg-transparent pr-2 animate-none"
+                                      />
+                                      <span className="text-[7px] text-zinc-400 pointer-events-none select-none">▼</span>
+                                    </div>
+
+                                    {!isCurrentSkipped && (
+                                      <div className="absolute left-0 top-full mt-1 w-full max-h-32 overflow-y-auto bg-white border border-zinc-200 rounded-lg shadow-lg hidden group-focus-within/combo:block hover:block z-50 divide-y divide-zinc-50 scrollbar-none">
+                                        <button
+                                          type="button"
+                                          onMouseDown={() => handleUnitTextChange(item.id, 'order_unit', unitStr)}
+                                          className="w-full text-center py-1.5 px-1 text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 transition-colors block truncate"
+                                        >
+                                          {unitStr}
+                                        </button>
+                                        {units.filter((u) => u.unit_name !== unitStr).map((u) => (
+                                          <button
+                                            key={u.id}
+                                            type="button"
+                                            onMouseDown={() => handleUnitTextChange(item.id, 'order_unit', u.unit_name)}
+                                            className="w-full text-center py-1.5 px-1 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-black transition-colors block truncate"
+                                          >
+                                            {u.unit_name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -501,8 +616,8 @@ export default function OrderPage() {
                   </div>
                 </div>
 
+                {/* Action Footer Bar */}
                 <div className="p-4 md:p-5 bg-zinc-50 border-t border-zinc-200 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
-
                   <div className="flex flex-col sm:flex-row gap-4 w-full xl:max-w-2xl">
                     <div className="flex flex-col gap-1.5 flex-1">
                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
@@ -513,23 +628,19 @@ export default function OrderPage() {
                         required
                         value={signature}
                         onChange={(e) => setSignature(e.target.value)}
-                        placeholder=""
+                        placeholder="กรอกชื่อผู้บันทึกรายการ"
                         className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
                       />
                     </div>
 
-                    {/* <div className="flex flex-col gap-1.5 flex-1">
+                    <div className="flex flex-col gap-1.5 flex-1">
                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
-                        กำหนดส่ง (Delivery)
+                        วันที่ทำรายการ (Date)
                       </label>
-                      <input
-                        type="text"
-                        value={deliveryWhen}
-                        onChange={(e) => setDeliveryWhen(e.target.value)}
-                        placeholder=""
-                        className="w-full font-mono font-bold text-zinc-800 border border-zinc-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-black transition-all bg-white placeholder:font-sans placeholder:font-normal placeholder:text-zinc-400 text-sm"
-                      />
-                    </div> */}
+                      <div className="w-full font-sans font-bold text-zinc-500 border border-zinc-200/60 rounded-lg px-4 py-2.5 bg-zinc-100/50 text-sm select-none flex items-center h-[42px]">
+                        {displayTodayDate}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-2 w-full xl:w-auto">

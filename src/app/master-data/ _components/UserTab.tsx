@@ -242,10 +242,10 @@ export function UserTab() {
                             </div>
                         </div>
 
-                        <div className="space-y-1">
+                        {/* <div className="space-y-1">
                             <label className="text-[10px] font-bold text-zinc-500">ชื่อบริษัท (Company Name) *</label>
                             <input type="text" required disabled={isSubmitting} placeholder="เช่น บริษัท ตัวอย่าง จำกัด" value={formData.company_name} onChange={(e) => setFormData({ ...formData, company_name: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold disabled:bg-zinc-50" />
-                        </div>
+                        </div> */}
 
                         <div className="space-y-1">
                             <label className="text-[10px] font-bold text-zinc-500">ชื่อพนักงาน (Name)</label>

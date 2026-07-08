@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
-import type { Units } from './entities/unit.entities'; // ปรับ Path ให้ตรงกับโปรเจกต์ของคุณ
-import type { CreateUnitPayload, UpdateUnitPayload } from './dto/input-unit.dto'; // ปรับ Path ให้ตรงกับโปรเจกต์ของคุณ
+import type { Units } from './entities/unit.entities';
+import type { CreateUnitPayload, UpdateUnitPayload } from './dto/input-unit.dto';
 
 export const unitRepository = {
   async findById(id: string): Promise<Units | null> {
@@ -35,13 +35,14 @@ export const unitRepository = {
     return count > 0;
   },
 
+  // ปรับแก้ตรงส่วนนี้
   async create(data: CreateUnitPayload): Promise<Units> {
     const now = new Date();
     const { rows } = await query<Units>(
-      `INSERT INTO units (id, unit_name, created_by, created_date)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO units (unit_name, created_by, created_date)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [data.unit, data.unit_name, data.createdBy, now]
+      [data.unit_name, data.createdBy, now]
     );
     return rows[0];
   },

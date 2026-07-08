@@ -25,20 +25,26 @@ export const orderService = {
     const historyMap: Record<string, {
       cycle_1_stock: number | null;
       cycle_1_order: number | null;
+      cycle_1_date?: string | Date | null;
       cycle_2_stock: number | null;
       cycle_2_order: number | null;
+      cycle_2_date?: string | Date | null;
       cycle_3_stock: number | null;
       cycle_3_order: number | null;
+      cycle_3_date?: string | Date | null;
     }> = {};
 
     historyRows.forEach(row => {
       historyMap[row.inventory_id] = {
         cycle_1_stock: row.cycle_1_stock,
         cycle_1_order: row.cycle_1_order,
+        cycle_1_date: row.cycle_1_date ?? null,
         cycle_2_stock: row.cycle_2_stock,
         cycle_2_order: row.cycle_2_order,
+        cycle_2_date: row.cycle_2_date ?? null,
         cycle_3_stock: row.cycle_3_stock,
-        cycle_3_order: row.cycle_3_order
+        cycle_3_order: row.cycle_3_order,
+        cycle_3_date: row.cycle_3_date ?? null,
       };
     });
 
@@ -121,7 +127,7 @@ export const orderService = {
         // 🔄 วนลูปเพื่อทำการรัน No. (1, 2, 3...) และผูกชื่อสินค้ากับจำนวนทศนิยมส่ง
         let itemsText = '';
         approvedItems.forEach((item, index) => {
-          itemsText += `${index + 1}. ${item.inventory_name} -> จำนวนส่ง: ${Number(item.order_quantity)} ${item.unit_name || ''}\n`;
+          itemsText += `${index + 1}. ${item.inventory_name} - ${Number(item.order_quantity)} \n`;
         });
 
         // ค้นหา line_id ของตัวคนกดอนุมัติในระบบ
