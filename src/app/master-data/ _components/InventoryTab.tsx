@@ -89,7 +89,7 @@ export function InventoryTab() {
       inventory_quantity: item.inventory_quantity?.toString() || '0',
       unit_price: item.unit_price?.toString() || '0',
       safety_quantity: item.safety_quantity?.toString() || '0',
-      unit_id: item.unit?.id || '',
+      unit_id: item.unit?.id || '2d3814fe-0dc4-4abf-8023-eefe0bf880ee',
       supplier_id: item.supplier?.id || '',
       status: item.status || 'ACTIVE',
       remark: item.remark || ''
@@ -107,7 +107,7 @@ export function InventoryTab() {
         seq: Number(formData.seq || 0),
         unit_price: Number(formData.unit_price || 0),
         safety_quantity: Number(formData.safety_quantity || 0),
-        unit_id: formData.unit_id,
+        unit_id: formData.unit_id || '2d3814fe-0dc4-4abf-8023-eefe0bf880ee',
         supplier_id: formData.supplier_id,
         status: formData.status,
         remark: formData.remark || ''
