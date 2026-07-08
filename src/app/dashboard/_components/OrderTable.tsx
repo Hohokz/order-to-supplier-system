@@ -76,8 +76,8 @@ export function OrderTable({ orders, isLoading, error, onOrderClick }: OrderTabl
                 <td className="py-4 px-2 text-right">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black border font-mono transition-all
                     ${isAllApproved
-                      ? 'bg-zinc-900 text-white border-black'
-                      : 'bg-white text-zinc-400 border-zinc-200'
+                      ? 'bg-emerald-300 text-emerald-600 border-emerald-200'
+                      : 'bg-orange-100 text-orange-600 border-orange-200'
                     }`}>
                     {isAllApproved ? 'APPROVED' : 'PENDING'}
                   </span>

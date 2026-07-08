@@ -20,19 +20,20 @@ export interface ItemHistoryRow {
     cycle_1_quantity_unit: string | null; // 💡 เพิ่มเติม
     cycle_1_order_unit: string | null;
     cycle_1_supplier_remark: string | null;
-    cycle_1_date?: string | Date | null;
     cycle_2_stock: number | null;
     cycle_2_order: number | null;
     cycle_2_quantity_unit: string | null; // 💡 เพิ่มเติม
     cycle_2_order_unit: string | null;
     cycle_2_supplier_remark: string | null;
-    cycle_2_date?: string | Date | null;
     cycle_3_stock: number | null;
     cycle_3_order: number | null;
     cycle_3_quantity_unit: string | null;
     cycle_3_order_unit: string | null;
     cycle_3_supplier_remark: string | null;
-    cycle_3_date?: string | Date | null;
+}
+
+export interface ItemHistoryWithDateRow {
+    created_date: string | Date;
 }
 
 export const orderRepository = {
@@ -118,6 +119,14 @@ export const orderRepository = {
         return { data: sanitizedRows, total: Number(countResult.rows[0]?.count ?? 0) };
     },
 
+    async getHistoryDate(orderIds: number): Promise<ItemHistoryWithDateRow[]> {
+        const historyIds = [orderIds - 1, orderIds - 2, orderIds - 3]
+        const sql = `SELECT created_date FROM orders WHERE id = ANY($1::int[]) ORDER BY created_date DESC`;
+
+        const result = await query<ItemHistoryWithDateRow>(sql, [historyIds]);
+        return result.rows;
+    },
+
     async getRecentOrderHistory(): Promise<ItemHistoryRow[]> {
         const sql = `
         WITH RankedOrders AS (
@@ -128,7 +137,7 @@ export const orderRepository = {
             oi.quantity_unit as quantity_unit,
             oi.order_unit as order_unit,
             oi.supplier_remark as supplier_remark,
-            o.created_date,
+            o.order_date,
             ROW_NUMBER() OVER(PARTITION BY oi.inventory_id ORDER BY o.created_date DESC) as rn
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
@@ -141,21 +150,21 @@ export const orderRepository = {
             MAX(CASE WHEN rn = 1 THEN quantity_unit END) as cycle_1_quantity_unit,
             MAX(CASE WHEN rn = 1 THEN order_unit END) as cycle_1_order_unit,
             MAX(CASE WHEN rn = 1 THEN supplier_remark END) as cycle_1_supplier_remark,
-            MAX(CASE WHEN rn = 1 THEN created_date END) as cycle_1_date,
+            MAX(CASE WHEN rn = 1 THEN order_date END) as cycle_1_date,
             
             MAX(CASE WHEN rn = 2 THEN stock_qty END) as cycle_2_stock,
             MAX(CASE WHEN rn = 2 THEN order_qty END) as cycle_2_order,
             MAX(CASE WHEN rn = 2 THEN quantity_unit END) as cycle_2_quantity_unit,
             MAX(CASE WHEN rn = 2 THEN order_unit END) as cycle_2_order_unit,
             MAX(CASE WHEN rn = 2 THEN supplier_remark END) as cycle_2_supplier_remark,
-            MAX(CASE WHEN rn = 2 THEN created_date END) as cycle_2_date,
+            MAX(CASE WHEN rn = 2 THEN order_date END) as cycle_2_date,
             
             MAX(CASE WHEN rn = 3 THEN stock_qty END) as cycle_3_stock,
             MAX(CASE WHEN rn = 3 THEN order_qty END) as cycle_3_order,
             MAX(CASE WHEN rn = 3 THEN quantity_unit END) as cycle_3_quantity_unit,
             MAX(CASE WHEN rn = 3 THEN order_unit END) as cycle_3_order_unit,
             MAX(CASE WHEN rn = 3 THEN supplier_remark END) as cycle_3_supplier_remark,
-            MAX(CASE WHEN rn = 3 THEN created_date END) as cycle_3_date
+            MAX(CASE WHEN rn = 3 THEN order_date END) as cycle_3_date
         FROM RankedOrders
         WHERE rn <= 3
         GROUP BY inventory_id;

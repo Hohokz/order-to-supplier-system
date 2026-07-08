@@ -22,7 +22,27 @@ export const orderController = {
             return handleError(err);
         }
     },
+    async getHistoryDate(req: NextRequest, params: { id: string }) {
+        try {
+            // 1. ตรวจสอบสิทธิ์
+            const auth = requireAuth(req);
+            requireRole(auth, 'APPROVER');
 
+            // 2. แปลง id
+            const id = parseInt(params.id);
+            if (isNaN(id)) {
+                return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
+            }
+
+            // 3. เรียกใช้ service ที่จัดการแปลงข้อมูลให้เรียบร้อยแล้ว
+            const cycles = await orderService.getHistoryDate([id]);
+
+            // 4. ส่งค่ากลับไปเป็น Object 3 รอบ
+            return NextResponse.json(cycles);
+        } catch (err) {
+            return handleError(err);
+        }
+    },
     async create(req: NextRequest) {
         try {
             const auth = requireAuth(req);

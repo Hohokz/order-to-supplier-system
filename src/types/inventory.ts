@@ -26,6 +26,7 @@ export interface MasterInventoryRow {
   supplier: SupplierInfo; // ใช้ร่วมกับของเดิมได้ ไม่ซ้ำซ้อน
   unit: UnitInfo;         // ใช้ร่วมกับของเดิมได้ ไม่ซ้ำซ้อน
   safety_quantity: string;
+  remark: string;
 }
 
 export interface MasterInventoryResponse {

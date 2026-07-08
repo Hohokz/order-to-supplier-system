@@ -26,4 +26,5 @@ export const GetInventoryByIdResponse = z.object({
   unit: UnitSchema,
   created_date: z.date(),
   safety_quantity: z.number(),
+  remark: z.string().optional(),
 });

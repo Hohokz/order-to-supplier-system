@@ -144,9 +144,9 @@ export const inventoryRepository = {
       WITH inserted AS (
         INSERT INTO inventories (
           seq, inventory_name, inventory_quantity, unit_price, status,
-          supplier_id, unit_id, created_by, created_date, safety_quantity
+          supplier_id, unit_id, created_by, created_date, safety_quantity, remark
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       )
       SELECT i.*,
@@ -156,6 +156,7 @@ export const inventoryRepository = {
       LEFT JOIN suppliers s ON i.supplier_id = s.id
       LEFT JOIN units u ON i.unit_id = u.id
     `;
+      console.log('SQL', sql)
 
       const { rows } = await client.query<Inventory>(sql, [
         nextSeq,
@@ -167,7 +168,8 @@ export const inventoryRepository = {
         data.unit_id,
         data.createdBy,
         now,
-        data.safety_quantity
+        data.safety_quantity,
+        data.remark
       ]);
 
       await client.query('COMMIT');

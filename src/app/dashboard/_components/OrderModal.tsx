@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { OrderWithItems, OrderItem, OrderItemWithHistory, OrderHistory } from '@/types/order';
+import { OrderWithItems, OrderItem, OrderItemWithHistory } from '@/types/order';
 import { useAuth } from '@/context/AuthContext';
 
 interface OrderModalProps {
@@ -11,11 +11,22 @@ interface OrderModalProps {
   onApprove: (orderId: number, supplierId: string) => Promise<void>;
 }
 
+interface OrderItemWithDisplay extends OrderItem {
+  displaySeq: number;
+}
+
 export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
   const { user } = useAuth();
   const [activeSupplier, setActiveSupplier] = useState<string>('');
   const [isApproving, setIsApproving] = useState<boolean>(false);
   const [approverName, setApproverName] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState<boolean>(false);
+
+  const [historyDates, setHistoryDates] = useState<{
+    cycle_1_date: string | null;
+    cycle_2_date: string | null;
+    cycle_3_date: string | null;
+  }>({ cycle_1_date: null, cycle_2_date: null, cycle_3_date: null });
 
   const groupedItems = order
     ? order.items.reduce((acc, item) => {
@@ -26,6 +37,15 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
     }, {} as Record<string, OrderItem[]>)
     : {};
 
+  const processedItems: Record<string, OrderItemWithDisplay[]> = {};
+
+  Object.keys(groupedItems).forEach((supplier) => {
+    const sorted = [...groupedItems[supplier]].sort((a, b) => Number(a.seq) - Number(b.seq));
+    processedItems[supplier] = sorted.map((item, index) => ({
+      ...item,
+      displaySeq: index + 1
+    }));
+  });
   const supplierNames = Object.keys(groupedItems);
 
   useEffect(() => {
@@ -35,12 +55,7 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
     }
   }, [order]);
 
-  const currentItems = (order ? (groupedItems[activeSupplier] || []) : []) as OrderItemWithHistory[];
-
-  const cycle1Date = currentItems.find(item => (item as OrderItemWithHistory).history?.cycle_1_date)?.history?.cycle_1_date;
-  const cycle2Date = currentItems.find(item => (item as OrderItemWithHistory).history?.cycle_2_date)?.history?.cycle_2_date;
-  const cycle3Date = currentItems.find(item => (item as OrderItemWithHistory).history?.cycle_3_date)?.history?.cycle_3_date;
-
+  const currentItems = (order ? (processedItems[activeSupplier] || []) : []) as OrderItemWithDisplay[];
   const tabApprovedBy = currentItems.find(item => item.approve_by)?.approve_by || null;
 
   // ค้นหาหมายเหตุซัพพลายเออร์จากรายการใดก็ได้ในกลุ่ม
@@ -70,6 +85,24 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
     fetchApproverName();
   }, [tabApprovedBy]);
 
+  useEffect(() => {
+    const fetchDates = async () => {
+      if (!order) return;
+      try {
+        const response = await apiClient.post(`/api/orders/${order.id}/date`, {});
+
+        setHistoryDates(response as {
+          cycle_1_date: string | null;
+          cycle_2_date: string | null;
+          cycle_3_date: string | null;
+        });
+      } catch (err) {
+        console.error("Failed to fetch history dates", err);
+      }
+    };
+    fetchDates();
+  }, [order?.id]);
+
   const currentSupplierId = currentItems[0]?.supplier_id;
   const orderedItems = currentItems.filter(item => Number(item.order_quantity) > 0);
   const isTabApproved = orderedItems.length > 0 && orderedItems.every(item => item.approve_status === 'APPROVED');
@@ -83,9 +116,18 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
     try {
       setIsApproving(true);
       await onApprove(order.id, currentSupplierId);
+
+      // 2. เปลี่ยนสถานะเป็นแสดงข้อความสำเร็จ
+      setShowSuccess(true);
+
+      // 3. หน่วงเวลา 2 วินาทีแล้วปิด Modal
+      setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+      }, 2000);
+
     } catch (error) {
       console.error('Approval failed:', error);
-    } finally {
       setIsApproving(false);
     }
   };
@@ -140,38 +182,31 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
         </div>
 
         <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-white">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-zinc-200 text-zinc-400 text-center">
-                  <th className="py-4 px-2 font-medium w-12">ลำดับ</th>
-                  <th className="py-3 px-2 text-left font-medium min-w-[180px]">ชื่อสินค้าวัตถุดิบ</th>
-                  <th className="py-3 px-2 font-black min-w-[90px]">สั่งเพิ่ม</th>
-                  <th className="py-3 px-2 font-medium min-w-[90px]">คงเหลือ</th>
-                  <th className="py-3 px-1 font-medium w-28">
-                    <div>1 รอบก่อน</div>
-                    {cycle1Date && (
-                      <div className="text-[10px] text-zinc-400 font-mono mt-0.5 font-normal whitespace-nowrap">
-                        ({new Date(cycle1Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })})
-                      </div>
-                    )}
-                  </th>
-                  <th className="py-3 px-1 font-medium w-28">
-                    <div>2 รอบก่อน</div>
-                    {cycle2Date && (
-                      <div className="text-[10px] text-zinc-400 font-mono mt-0.5 font-normal whitespace-nowrap">
-                        ({new Date(cycle2Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })})
-                      </div>
-                    )}
-                  </th>
-                  <th className="py-3 px-1 font-medium w-28 hidden md:table-cell">
-                    <div>3 รอบก่อน</div>
-                    {cycle3Date && (
-                      <div className="text-[10px] text-zinc-400 font-mono mt-0.5 font-normal whitespace-nowrap">
-                        ({new Date(cycle3Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })})
-                      </div>
-                    )}
-                  </th>
+                  <th className="hidden sm:table-cell py-4 px-2 font-medium w-12">ลำดับ</th>
+                  <th className="py-3 px-2 text-left font-medium min-w-[140px]">ชื่อสินค้าวัตถุดิบ</th>
+                  <th className="py-3 px-2 font-medium min-w-[70px]">คงเหลือ</th>
+                  <th className="py-3 px-2 font-black min-w-[70px]">สั่งเพิ่ม</th>
+
+                  {[1, 2, 3].map((i) => {
+                    const dateKey = `cycle_${i}_date` as keyof typeof historyDates;
+                    const dateValue = historyDates[dateKey];
+                    const isHidden = i === 3 ? 'hidden sm:table-cell' : '';
+
+                    return (
+                      <th key={i} className={`py-3 px-1 font-medium w-24 ${isHidden}`}>
+                        <div>{i} รอบก่อน</div>
+                        {dateValue && (
+                          <div className="text-[9px] text-zinc-400 font-mono mt-0.5 font-normal">
+                            ({new Date(dateValue).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })})
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -184,76 +219,43 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
 
                   const currentCount = Number(itemData.quantity) || 0;
                   const orderCount = Number(itemData.order_quantity) || 0;
-                  const safetyLimitNum = Number(itemData.safety_quantity) || 0;
-                  const history = itemData.history;
-
                   const displayQuantityUnit = itemData.quantity_unit || itemData.unit_name || '';
                   const displayOrderUnit = itemData.order_unit || itemData.unit_name || '';
-
-                  const isOrdered = orderCount > 0;
-                  const isBelowSafety = currentCount < safetyLimitNum;
-
-                  let rowStyle = "";
-                  if (isOrdered && isBelowSafety) {
-                    rowStyle = "bg-red-50/80 text-red-900 border-red-100";
-                  } else if (isOrdered) {
-                    rowStyle = "bg-emerald-50/60 text-emerald-950 border-emerald-100";
-                  } else if (isBelowSafety) {
-                    rowStyle = "bg-red-50/80 text-red-900/40 border-red-100";
-                  } else {
-                    rowStyle = "bg-zinc-50/70 text-zinc-400 border-zinc-200";
-                  }
-
-                  const isDisabled = isBelowSafety && !isOrdered;
-                  const disabledStyle = isDisabled ? "opacity-60 pointer-events-none select-none" : "";
+                  const history = itemData.history;
 
                   return (
-                    <tr key={item.id} className={`transition-colors text-center ${rowStyle} ${disabledStyle}`}>
-                      <td className="py-4 px-2 text-center text-zinc-500 font-mono text-xs">
-                        {item.seq}
-                      </td>
-                      <td className="py-4 px-2 text-left">
-                        <div className="font-bold">{itemData.inventory_name}</div>
+                    <tr key={item.id} className="transition-colors text-center bg-zinc-50/70 hover:bg-zinc-50">
+                      <td className="hidden sm:table-cell py-4 px-2 text-zinc-500 font-mono text-xs">{item.displaySeq}</td>
+
+                      <td className="py-4 px-2 text-left max-w-[150px]">
+                        <div className="font-bold break-words leading-tight">{itemData.inventory_name}</div>
                       </td>
 
-                      <td className="py-4 px-2 font-mono font-black">
-                        {isOrdered ? `+${orderCount}` : '0'}
-                        {displayOrderUnit && <span className="ml-1 text-[10px] font-sans font-normal opacity-70">{displayOrderUnit}</span>}
+                      {/* คงเหลือ พร้อมหน่วย */}
+                      <td className="py-4 px-1 font-mono">
+                        {itemData.quantity} <span className="text-[10px] opacity-70">{displayQuantityUnit}</span>
                       </td>
 
-                      <td className="py-4 px-2 font-mono">
-                        {itemData.quantity}
-                        {displayQuantityUnit && <span className="ml-1 text-[10px] font-sans font-normal opacity-70">{displayQuantityUnit}</span>}
+                      {/* สั่งเพิ่ม พร้อมหน่วย */}
+                      <td className="py-4 px-1 font-mono font-black">
+                        +{orderCount} <span className="text-[10px] opacity-70">{displayOrderUnit}</span>
                       </td>
 
+                      {/* ประวัติย้อนหลัง */}
                       {[3, 2, 1].map((cycle) => {
                         const safeHistory = history as Record<string, string | number | null | undefined> | undefined;
-
                         const stock = safeHistory?.[`cycle_${cycle}_stock`];
                         const order = safeHistory?.[`cycle_${cycle}_order`];
-
-                        const histQuantityUnit = safeHistory?.[`cycle_${cycle}_quantity_unit`] as string | null | undefined;
-                        const histOrderUnit = safeHistory?.[`cycle_${cycle}_order_unit`] as string | null | undefined;
-
-                        const displayHistQuantityUnit = histQuantityUnit || itemData.unit_name || '';
-                        const displayHistOrderUnit = histOrderUnit || itemData.unit_name || '';
+                        const qUnit = safeHistory?.[`cycle_${cycle}_quantity_unit`] || itemData.unit_name;
+                        const oUnit = safeHistory?.[`cycle_${cycle}_order_unit`] || itemData.unit_name;
 
                         return (
-                          <td
-                            key={cycle}
-                            className={`py-3 px-1 ${cycle === 3 ? 'hidden md:table-cell' : ''}`}
-                          >
-                            <div className="flex justify-center">
-                              <div className={`flex flex-col w-24 rounded-xl border border-zinc-200 px-2 py-1.5 text-[9px] text-left font-mono ${isBelowSafety ? 'bg-white/50' : 'bg-zinc-50/40'}`}>
-                                <div className="truncate">
-                                  คงเหลือ: <span className="font-bold">{stock !== null && stock !== undefined ? String(stock) : '-'}</span>
-                                  {stock !== null && stock !== undefined && displayHistQuantityUnit && <span className="font-sans opacity-70 ml-0.5">{displayHistQuantityUnit}</span>}
-                                </div>
-                                <div className="border-t mt-0.5 pt-0.5 truncate">
-                                  สั่งเพิ่ม: <span>{order !== null && order !== undefined ? String(order) : '-'}</span>
-                                  {order !== null && order !== undefined && displayHistOrderUnit && <span className="font-sans opacity-70 ml-0.5">{displayHistOrderUnit}</span>}
-                                </div>
-                              </div>
+                          <td key={cycle} className={`py-2 px-1 ${cycle === 3 ? 'hidden sm:table-cell' : ''}`}>
+                            <div className="text-[9px] font-mono leading-tight">
+                              <div className="text-zinc-500">เหลือ:</div>
+                              <div className="text-zinc-500">{stock ?? '-'} <span className="opacity-60">{qUnit}</span></div>
+                              <div className="font-bold text-zinc-800">สั่ง:</div>
+                              <div className="font-bold text-zinc-800">{order ?? '-'} <span className="opacity-60">{oUnit}</span></div>
                             </div>
                           </td>
                         );
@@ -289,7 +291,19 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
             )}
           </div>
         </div>
-
+        {showSuccess && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-300">
+            <div className="bg-white p-8 rounded-2xl shadow-xl border border-zinc-100 flex flex-col items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-2xl font-bold">
+                ✓
+              </div>
+              <div className="text-center">
+                <h3 className="font-bold text-zinc-900">อนุมัติเรียบร้อยแล้ว</h3>
+                <p className="text-xs text-zinc-500">ระบบกำลังดำเนินการและปิดหน้าต่างนี้...</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

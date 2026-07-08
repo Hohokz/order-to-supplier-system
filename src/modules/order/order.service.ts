@@ -1,4 +1,4 @@
-import { orderRepository } from './order.repository';
+import { ItemHistoryWithDateRow, orderRepository } from './order.repository';
 import { inventoryRepository } from '../inventories/inventory.repository';
 import type { CreateOrderPayload } from './dto/input-order';
 import { OrderNotFoundError, OrderSignatureIsEmpty } from './order.error';
@@ -7,6 +7,18 @@ import { OrderResponse } from './dto/response/list-order-response.dto';
 import { userRepository } from '../users/user.repository';
 import { sendLineMessage } from '@/lib/line';
 import { query } from '@/lib/db'; // 💡 1. เพิ่มอิมพอร์ตสำหรับยิง SQL ตรงเพื่อดึงรายชื่อกลุ่มผู้อนุมัติ
+
+interface ItemHistoryWithDateRow {
+  created_date: string | Date;
+}
+
+function transformToCycles(rows: ItemHistoryWithDateRow[]) {
+  return {
+    cycle_1_date: rows[0]?.created_date || null,
+    cycle_2_date: rows[1]?.created_date || null,
+    cycle_3_date: rows[2]?.created_date || null,
+  };
+}
 
 export const orderService = {
   async listOrders(page: number, limit: number, filters?: { orderDate?: string; approvedBy?: string; signature?: string }) {
@@ -38,17 +50,19 @@ export const orderService = {
       historyMap[row.inventory_id] = {
         cycle_1_stock: row.cycle_1_stock,
         cycle_1_order: row.cycle_1_order,
-        cycle_1_date: row.cycle_1_date ?? null,
         cycle_2_stock: row.cycle_2_stock,
         cycle_2_order: row.cycle_2_order,
-        cycle_2_date: row.cycle_2_date ?? null,
         cycle_3_stock: row.cycle_3_stock,
         cycle_3_order: row.cycle_3_order,
-        cycle_3_date: row.cycle_3_date ?? null,
       };
     });
 
     return historyMap;
+  },
+  async getHistoryDate(orderIds: number[]) {
+    const rows = await orderRepository.getHistoryDate(orderIds);
+    // นำมาจัดรูปเป็น { cycle_1_date: ..., cycle_2_date: ... } ก่อนส่งให้ Controller
+    return transformToCycles(rows);
   },
 
   async createOrder(data: CreateOrderPayload & { createdBy: string }): Promise<OrderResponse> {

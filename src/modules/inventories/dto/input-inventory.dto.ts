@@ -11,6 +11,7 @@ export const CreateInventoryInput = z.object({
   supplier_id: z.string().uuid('รูปแบบ Supplier ID ไม่ถูกต้อง'),
   unit_id: z.string(),
   safety_quantity: z.number().min(0, 'จำนวนต้องไม่ติดลบ'),
+  remark: z.string().optional(),
 });
 
 export const UpdateInventoryInput = CreateInventoryInput.partial();
