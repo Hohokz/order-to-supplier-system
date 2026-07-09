@@ -8,7 +8,7 @@ interface UserRow {
     id: string;
     username: string;
     name?: string;
-    user_role: 'APPROVER' | 'OBSERVER'; 
+    user_role: 'APPROVER' | 'OBSERVER';
     line_id?: string;
     company_name?: string;
 }
@@ -18,7 +18,7 @@ const initialFormData = {
     username: '',
     name: '',
     password: '',
-    user_role: 'OBSERVER', 
+    user_role: 'OBSERVER',
     line_id: '',
     company_name: ''
 };
@@ -85,8 +85,8 @@ export function UserTab() {
                 userRole: formData.user_role,
                 password: formData.password,
                 password_hash: formData.password,
-                company_name: formData.company_name,
-                companyName: formData.company_name
+                company_name: 'KURU',
+                companyName: 'KURU'
             };
 
             if (isEditMode) {

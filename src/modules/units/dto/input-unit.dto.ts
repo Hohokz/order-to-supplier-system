@@ -4,7 +4,6 @@ import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 extendZodWithOpenApi(z);
 
 export const CreateUnitInput = z.object({
-    unit: z.string().min(1, 'กรุณาระบุหน่วยนับที่ต้องการใช้').max(100),
     unit_name: z.string().min(1, 'กรุณาระบุชื่อหน่วยนับ').max(100),
 });
 
