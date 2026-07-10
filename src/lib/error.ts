@@ -31,7 +31,12 @@ export function extractErrorMessage(err: unknown, defaultMessage = 'เกิด
   // 💡 1. ดักแกะจาก details ชั้นนอกสุด (โครงสร้างก้อน JSON ที่คุณส่งมา)
   if (Array.isArray(errorObj.details) && errorObj.details.length > 0) {
     return errorObj.details
-      .map((d: ValidationErrorDetail) => d.message || (d.field && d.error ? `${d.field}: ${d.error}` : ''))
+      .map((d: ValidationErrorDetail) => {
+        if (d.field && d.message) {
+          return `${d.field}: ${d.message}`;
+        }
+        return d.message || (d.field && d.error ? `${d.field}: ${d.error}` : '');
+      })
       .filter(Boolean)
       .join(', ');
   }
@@ -40,7 +45,12 @@ export function extractErrorMessage(err: unknown, defaultMessage = 'เกิด
   const responseDetails = errorObj.response?.data?.details;
   if (Array.isArray(responseDetails) && responseDetails.length > 0) {
     return responseDetails
-      .map((d: ValidationErrorDetail) => d.message || (d.field && d.error ? `${d.field}: ${d.error}` : ''))
+      .map((d: ValidationErrorDetail) => {
+        if (d.field && d.message) {
+          return `${d.field}: ${d.message}`;
+        }
+        return d.message || (d.field && d.error ? `${d.field}: ${d.error}` : '');
+      })
       .filter(Boolean)
       .join(', ');
   }

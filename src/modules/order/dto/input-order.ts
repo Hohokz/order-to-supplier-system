@@ -10,7 +10,7 @@ export const CreateOrderInput = z.object({
     // delivery_when: z.string().min(1),
     order_unit: z.string().min(1),
     quantity_unit: z.string().min(1),
-    supplier_remark: z.string().min(1),
+    // supplier_remark: z.string().min(1),
   })).min(1, "Order must have at least one item"),
 });
 

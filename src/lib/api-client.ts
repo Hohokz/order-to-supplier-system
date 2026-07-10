@@ -66,7 +66,13 @@ export const apiClient = {
         (errorData as { message?: string })?.message || 
         'เกิดข้อผิดพลาดในการเชื่อมต่อระบบ';
 
-      throw new Error(errorMessage);
+      const error: any = new Error(errorMessage);
+      if (errorData && typeof errorData === 'object') {
+        error.details = (errorData as any).details;
+        error.error = (errorData as any).error;
+        error.response = { data: errorData };
+      }
+      throw error;
     }
 
     return data as T;
