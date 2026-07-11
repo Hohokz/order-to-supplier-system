@@ -232,7 +232,8 @@ export function InventoryTab() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">จำนวนเริ่มต้น *</label>
-                <input type="number" required min="0" disabled={isSubmitting} value={formData.inventory_quantity} onChange={(e) => setFormData({ ...formData, inventory_quantity: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50" />
+                {/* เปลี่ยนเป็นตัวเลขแทนคำว่า any */}
+                <input type="number" step={0.01} required min="0" disabled={isSubmitting} value={formData.inventory_quantity} onChange={(e) => setFormData({ ...formData, inventory_quantity: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">หน่วยนับ *</label>
@@ -245,7 +246,8 @@ export function InventoryTab() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">จุดสั่งซื้อขั้นต่ำ (Safety) *</label>
-                <input type="number" required min="0" disabled={isSubmitting} value={formData.safety_quantity} onChange={(e) => setFormData({ ...formData, safety_quantity: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50" />
+                {/* เปลี่ยนเป็นตัวเลขแทนคำว่า any */}
+                <input type="number" step={0.01} required min="0" disabled={isSubmitting} value={formData.safety_quantity} onChange={(e) => setFormData({ ...formData, safety_quantity: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500">สถานะคลังสินค้า</label>

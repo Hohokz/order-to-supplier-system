@@ -195,7 +195,8 @@ export const inventoryRepository = {
       supplier_id: 'supplier_id',
       unit_id: 'unit_id',
       safety_quantity: 'safety_quantity',
-      updatedBy: 'updated_by'
+      updatedBy: 'updated_by',
+      remark: 'remark',
     };
 
     for (const [key, value] of Object.entries(data)) {

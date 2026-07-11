@@ -60,7 +60,7 @@ export default function OrderPage() {
   const [activeSupplier, setActiveSupplier] = useState<string>('');
   const [skippedSuppliers, setSkippedSuppliers] = useState<string[]>([]);
 
-  // 💡 State เก็บหมายเหตุแยกตามชื่อซัพพลายเออร์
+  // State เก็บหมายเหตุแยกตามชื่อซัพพลายเออร์
   const [supplierRemarks, setSupplierRemarks] = useState<Record<string, string>>({});
 
   const [masterSubTab, setMasterSubTab] = useState<MasterSubTabType>('inventory');
@@ -244,7 +244,7 @@ export default function OrderPage() {
           const currentOrderUnit = item.order_unit?.trim() || defaultUnitName;
 
           const supplierName = item.supplier?.supplier_name || 'ไม่ระบุผู้จัดจำหน่าย';
-          const currentRemark = supplierRemarks[supplierName]?.trim() || ''; // 💡 ดึงหมายเหตุของซัพพลายเออร์เจ้านี้มาแนบ
+          const currentRemark = supplierRemarks[supplierName]?.trim() || '';
 
           return {
             inventory_id: item.id,
@@ -264,7 +264,7 @@ export default function OrderPage() {
       showSuccess(successText);
       setSignature('');
       setSkippedSuppliers([]);
-      setSupplierRemarks({}); // 💡 ล้างข้อมูลหมายเหตุเมื่อส่งสำเร็จ
+      setSupplierRemarks({});
       setItems(prev => prev.map(item => ({
         ...item,
         quantity: '',
@@ -357,7 +357,6 @@ export default function OrderPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex flex-col">
 
-            {/* 💡 แถบแท็บซัพพลายเออร์ + ช่องกรอกหมายเหตุ (รวมไว้มุมขวาตามที่คุณวง) */}
             {!isMasterDataMode ? (
               <div className="bg-zinc-50/50 border-b border-zinc-200 flex flex-col xl:flex-row xl:items-center justify-between transition-all">
                 <div className="flex items-center overflow-x-auto scrollbar-none divide-x divide-zinc-100 w-full xl:w-auto flex-1">
@@ -438,6 +437,8 @@ export default function OrderPage() {
                       <thead>
                         <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
                           <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
+                          <th className="py-4 px-2 font-medium text-zinc-900 w-44">คงเหลือ *</th>
+                          <th className="py-4 px-2 font-black text-black w-44">สั่งเพิ่ม *</th>
                           <th className="py-4 px-2 font-medium w-24">
                             <div>2 รอบก่อน</div>
                             {cycle2Date && (
@@ -454,8 +455,6 @@ export default function OrderPage() {
                               </div>
                             )}
                           </th>
-                          <th className="py-4 px-2 font-medium text-zinc-900 w-44">คงเหลือ *</th>
-                          <th className="py-4 px-2 font-black text-black w-44">สั่งเพิ่ม *</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100 text-zinc-800">
@@ -487,7 +486,182 @@ export default function OrderPage() {
                                 </span>
                               </td>
 
-                              {/* 💡 ประวัติย้อนหลัง 2 รอบ กลับมาแสดงผลแบบตารางคลีนๆ เหมือนเดิม */}
+                              {/* ช่องสั่งเพิ่ม */}
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <div className="flex items-center w-20 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder="0"
+                                      value={item.order_quantity}
+                                      onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
+                                      disabled={isCurrentSkipped}
+                                      onFocus={() => handleNumberChange(item.id, 'order_quantity', '')}
+                                      onBlur={() => {
+                                        if (item.order_quantity === '') {
+                                          handleNumberChange(item.id, 'order_quantity', '0');
+                                        }
+                                      }}
+                                      className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent disabled:bg-transparent"
+                                    />
+                                  </div>
+
+                                  <div className="relative group/combo w-24 h-8">
+                                    <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
+                                      <input
+                                        type="text"
+                                        value={item.order_unit || ''}
+                                        disabled={isCurrentSkipped}
+                                        onChange={(e) => handleUnitTextChange(item.id, 'order_unit', e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            (e.target as HTMLInputElement).blur();
+                                          }
+                                        }}
+                                        placeholder={unitStr}
+                                        onFocus={() => handleUnitTextChange(item.id, 'order_unit', '')}
+                                        onBlur={() => {
+                                          setTimeout(() => {
+                                            // ตรวจสอบจากค่าปัจจุบันใน state จริงๆ ป้องกันการหลุดโฟกัสตัดหน้า
+                                            setItems(prev => prev.map(p =>
+                                              p.id === item.id && !p.order_unit ? { ...p, order_unit: unitStr } : p
+                                            ));
+                                          }, 200);
+                                        }}
+                                        className="w-full text-center font-sans text-[10px] font-black focus:outline-none bg-transparent pr-2 animate-none"
+                                      />
+                                      <span className="text-[7px] text-zinc-400 pointer-events-none select-none">▼</span>
+                                    </div>
+
+                                    {!isCurrentSkipped && (
+                                      <div className="absolute left-0 top-full mt-1 w-full max-h-32 overflow-y-auto bg-white border border-zinc-200 rounded-lg shadow-lg hidden group-focus-within/combo:block hover:block z-50 divide-y divide-zinc-50 scrollbar-none">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleUnitTextChange(item.id, 'order_unit', unitStr);
+                                            setTimeout(() => {
+                                              if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                                            }, 50);
+                                          }}
+                                          className="w-full text-center py-1.5 px-1 text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 transition-colors block truncate"
+                                        >
+                                          {unitStr}
+                                        </button>
+                                        {units.filter((u) => u.unit_name !== unitStr).map((u) => (
+                                          <button
+                                            key={u.id}
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handleUnitTextChange(item.id, 'order_unit', u.unit_name);
+                                              setTimeout(() => {
+                                                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                                              }, 50);
+                                            }}
+                                            className="w-full text-center py-1.5 px-1 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-black transition-colors block truncate"
+                                          >
+                                            {u.unit_name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* ช่องคงเหลือ */}
+                              <td className="py-3 px-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <div className={`flex items-center w-20 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder="0"
+                                      value={item.quantity}
+                                      onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
+                                      disabled={isCurrentSkipped}
+                                      onFocus={() => handleNumberChange(item.id, 'quantity', '')}
+                                      onBlur={() => {
+                                        if (item.quantity === '') {
+                                          handleNumberChange(item.id, 'quantity', '0');
+                                        }
+                                      }}
+                                      className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent disabled:bg-transparent"
+                                    />
+                                  </div>
+
+                                  <div className="relative group/combo-stock w-24 h-8">
+                                    <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
+                                      <input
+                                        type="text"
+                                        value={item.quantity_unit || ''}
+                                        disabled={isCurrentSkipped}
+                                        onChange={(e) => handleUnitTextChange(item.id, 'quantity_unit', e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            (e.target as HTMLInputElement).blur();
+                                          }
+                                        }}
+                                        placeholder={unitStr}
+                                        onFocus={() => handleUnitTextChange(item.id, 'quantity_unit', '')}
+                                        onBlur={() => {
+                                          setTimeout(() => {
+                                            setItems(prev => prev.map(p =>
+                                              p.id === item.id && !p.quantity_unit ? { ...p, quantity_unit: unitStr } : p
+                                            ));
+                                          }, 200);
+                                        }}
+                                        className="w-full text-center font-sans text-[10px] font-black focus:outline-none bg-transparent pr-2 animate-none"
+                                      />
+                                      <span className="text-[7px] text-zinc-400 pointer-events-none select-none">▼</span>
+                                    </div>
+
+                                    {!isCurrentSkipped && (
+                                      <div className="absolute left-0 top-full mt-1 w-full max-h-32 overflow-y-auto bg-white border border-zinc-200 rounded-lg shadow-lg hidden group-focus-within/combo-stock:block hover:block z-50 divide-y divide-zinc-50 scrollbar-none">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleUnitTextChange(item.id, 'quantity_unit', unitStr);
+                                            setTimeout(() => {
+                                              if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                                            }, 50);
+                                          }}
+                                          className="w-full text-center py-1.5 px-1 text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 transition-colors block truncate"
+                                        >
+                                          {unitStr}
+                                        </button>
+                                        {units.filter((u) => u.unit_name !== unitStr).map((u) => (
+                                          <button
+                                            key={u.id}
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handleUnitTextChange(item.id, 'quantity_unit', u.unit_name);
+                                              setTimeout(() => {
+                                                if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                                              }, 50);
+                                            }}
+                                            className="w-full text-center py-1.5 px-1 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-black transition-colors block truncate"
+                                          >
+                                            {u.unit_name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* ประวัติย้อนหลัง */}
                               <td className="py-3 px-1">
                                 <div className="flex items-center justify-center">
                                   <div className="flex flex-col justify-center w-24 h-10 rounded-xl border border-zinc-200 bg-zinc-50/40 px-1.5 text-[10px] text-left font-mono opacity-75">
@@ -517,146 +691,6 @@ export default function OrderPage() {
                                   </div>
                                 </div>
                               </td>
-
-                              <td className="py-3 px-2">
-                                <div className="flex items-center justify-center gap-1">
-                                  <div className={`flex items-center w-20 h-8 rounded-xl border bg-white px-2 transition-all ${(hasInputtedStock && isBelowSafety && !isCurrentSkipped) ? 'border-red-400 ring-1 ring-red-400' : 'border-zinc-200 focus-within:border-black'}`}>
-                                    <input
-                                      type="text"
-                                      inputMode="decimal"
-                                      placeholder="0"
-                                      value={item.quantity}
-                                      onChange={(e) => handleNumberChange(item.id, 'quantity', e.target.value)}
-                                      disabled={isCurrentSkipped}
-                                      onFocus={() => {
-                                        handleNumberChange(item.id, 'quantity', '');
-                                      }}
-                                      onBlur={() => {
-                                        if (item.quantity === '') {
-                                          handleNumberChange(item.id, 'quantity', '0');
-                                        }
-                                      }}
-                                      className="w-full text-center font-mono text-xs font-bold focus:outline-none bg-transparent disabled:bg-transparent"
-                                    />
-                                  </div>
-
-                                  <div className="relative group/combo-stock w-24 h-8">
-                                    <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
-                                      <input
-                                        type="text"
-                                        value={item.quantity_unit || ''}
-                                        disabled={isCurrentSkipped}
-                                        onChange={(e) => handleUnitTextChange(item.id, 'quantity_unit', e.target.value)}
-                                        placeholder={unitStr}
-                                        onFocus={() => {
-                                          handleUnitTextChange(item.id, 'quantity_unit', '');
-                                        }}
-                                        onBlur={() => {
-                                          setTimeout(() => {
-                                            if (!item.quantity_unit) {
-                                              handleUnitTextChange(item.id, 'quantity_unit', unitStr);
-                                            }
-                                          }, 150);
-                                        }}
-                                        className="w-full text-center font-sans text-[10px] font-black focus:outline-none bg-transparent pr-2 animate-none"
-                                      />
-                                      <span className="text-[7px] text-zinc-400 pointer-events-none select-none">▼</span>
-                                    </div>
-
-                                    {!isCurrentSkipped && (
-                                      <div className="absolute left-0 top-full mt-1 w-full max-h-32 overflow-y-auto bg-white border border-zinc-200 rounded-lg shadow-lg hidden group-focus-within/combo-stock:block hover:block z-50 divide-y divide-zinc-50 scrollbar-none">
-                                        <button
-                                          type="button"
-                                          onMouseDown={() => handleUnitTextChange(item.id, 'quantity_unit', unitStr)}
-                                          className="w-full text-center py-1.5 px-1 text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 transition-colors block truncate"
-                                        >
-                                          {unitStr}
-                                        </button>
-                                        {units.filter((u) => u.unit_name !== unitStr).map((u) => (
-                                          <button
-                                            key={u.id}
-                                            type="button"
-                                            onMouseDown={() => handleUnitTextChange(item.id, 'quantity_unit', u.unit_name)}
-                                            className="w-full text-center py-1.5 px-1 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-black transition-colors block truncate"
-                                          >
-                                            {u.unit_name}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-
-                              <td className="py-3 px-2">
-                                <div className="flex items-center justify-center gap-1">
-                                  <div className="flex items-center w-20 h-8 rounded-xl border border-black bg-white px-2 focus-within:ring-1 focus-within:ring-black transition-all">
-                                    <input
-                                      type="text"
-                                      inputMode="decimal"
-                                      placeholder="0"
-                                      value={item.order_quantity}
-                                      onChange={(e) => handleNumberChange(item.id, 'order_quantity', e.target.value)}
-                                      disabled={isCurrentSkipped}
-                                      onFocus={() => {
-                                        handleNumberChange(item.id, 'order_quantity', '');
-                                      }}
-                                      onBlur={() => {
-                                        if (item.order_quantity === '') {
-                                          handleNumberChange(item.id, 'order_quantity', '0');
-                                        }
-                                      }}
-                                      className="w-full text-center font-mono text-xs font-black focus:outline-none bg-transparent disabled:bg-transparent"
-                                    />
-                                  </div>
-
-                                  <div className="relative group/combo w-24 h-8">
-                                    <div className="flex items-center w-full h-full rounded-xl border border-zinc-300 bg-white px-1.5 focus-within:border-black transition-all">
-                                      <input
-                                        type="text"
-                                        value={item.order_unit || ''}
-                                        disabled={isCurrentSkipped}
-                                        onChange={(e) => handleUnitTextChange(item.id, 'order_unit', e.target.value)}
-                                        placeholder={unitStr}
-                                        onFocus={() => {
-                                          handleUnitTextChange(item.id, 'order_unit', '');
-                                        }}
-                                        onBlur={() => {
-                                          setTimeout(() => {
-                                            if (!item.order_unit) {
-                                              handleUnitTextChange(item.id, 'order_unit', unitStr);
-                                            }
-                                          }, 150);
-                                        }}
-                                        className="w-full text-center font-sans text-[10px] font-black focus:outline-none bg-transparent pr-2 animate-none"
-                                      />
-                                      <span className="text-[7px] text-zinc-400 pointer-events-none select-none">▼</span>
-                                    </div>
-
-                                    {!isCurrentSkipped && (
-                                      <div className="absolute left-0 top-full mt-1 w-full max-h-32 overflow-y-auto bg-white border border-zinc-200 rounded-lg shadow-lg hidden group-focus-within/combo:block hover:block z-50 divide-y divide-zinc-50 scrollbar-none">
-                                        <button
-                                          type="button"
-                                          onMouseDown={() => handleUnitTextChange(item.id, 'order_unit', unitStr)}
-                                          className="w-full text-center py-1.5 px-1 text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 transition-colors block truncate"
-                                        >
-                                          {unitStr}
-                                        </button>
-                                        {units.filter((u) => u.unit_name !== unitStr).map((u) => (
-                                          <button
-                                            key={u.id}
-                                            type="button"
-                                            onMouseDown={() => handleUnitTextChange(item.id, 'order_unit', u.unit_name)}
-                                            className="w-full text-center py-1.5 px-1 text-[10px] font-medium text-zinc-500 hover:bg-zinc-50 hover:text-black transition-colors block truncate"
-                                          >
-                                            {u.unit_name}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
                             </tr>
                           );
                         })}
@@ -665,7 +699,6 @@ export default function OrderPage() {
                   </div>
                 </div>
 
-                {/* Action Footer Bar */}
                 <div className="p-4 md:p-5 bg-zinc-50 border-t border-zinc-200 flex flex-col xl:flex-row xl:items-end justify-between gap-4">
                   <div className="flex flex-col sm:flex-row gap-4 w-full xl:max-w-2xl">
                     <div className="flex flex-col gap-1.5 flex-1">
