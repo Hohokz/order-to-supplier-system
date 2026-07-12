@@ -227,7 +227,7 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
                   const history = itemData.history;
 
                   const isNotOrdered = orderCount === 0;
-                  const hideInventoryDetails = isOpenOrderView && isNotOrdered;
+                  const hideInventoryDetails = isNotOrdered;
 
                   return (
                     <tr key={item.id} className="transition-colors text-center bg-zinc-50/70 hover:bg-zinc-50">
