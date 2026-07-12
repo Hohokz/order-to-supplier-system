@@ -3,6 +3,7 @@
 export interface SupplierInfo {
   id: string;
   supplier_name: string;
+  status?: string;
 }
 
 export interface UnitInfo {

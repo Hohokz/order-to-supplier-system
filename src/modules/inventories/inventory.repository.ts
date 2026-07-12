@@ -79,7 +79,7 @@ export const inventoryRepository = {
   async masterInventories() {
     const sql = `
       SELECT i.*, 
-             json_build_object('id', s.id, 'supplier_name', s.supplier_name) as supplier,
+             json_build_object('id', s.id, 'supplier_name', s.supplier_name, 'status', s.status) as supplier,
              json_build_object('id', u.id, 'unit_name', u.unit_name) as unit
       FROM inventories i
       LEFT JOIN suppliers s ON i.supplier_id = s.id

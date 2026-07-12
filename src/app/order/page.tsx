@@ -88,7 +88,10 @@ export default function OrderPage() {
           apiClient.get<{ data?: UnitType[] } | UnitType[]>('/api/units').catch(() => [])
         ]);
 
-        const targetRows = Array.isArray(masterResult) ? masterResult : [];
+        const targetRows = (Array.isArray(masterResult) ? masterResult : []).filter((row: any) => {
+          const status = row?.supplier?.status;
+          return !status || status === 'ACTIVE';
+        });
         const historyMap = historyResult || {};
 
         let finalUnits: UnitType[] = [];

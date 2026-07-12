@@ -81,7 +81,7 @@ export const orderService = {
     // 2. 🚀 [Workflow Broadcast] สอยรายชื่อ APPROVER ทุกคนที่มี LINE ID แล้วระเบิดข้อความแจ้งเตือนทันที
     try {
       // 🔎 ค้นหาผู้อนุมัติทุกคนในตาราง users ที่ผูกไอดีไลน์ (รหัสตัว U) ไว้แล้ว
-      const approverSql = `SELECT line_id FROM users WHERE user_role = 'APPROVER' AND line_id IS NOT NULL`;
+      const approverSql = `SELECT DISTINCT line_id FROM users WHERE user_role = 'APPROVER' AND line_id IS NOT NULL`;
       const approversRes = await query<{ line_id: string }>(approverSql);
       const approverList = approversRes.rows;
 
@@ -94,8 +94,9 @@ export const orderService = {
 
         // 📲 สั่งยิงกระจายข้อความหา APPROVER ทุกคนพร้อมกันแบบขนาน (Concurrent)
         // ข้อดีของการใช้ allSettled คือถ้าไลน์พนักงานบางคนล่ม คนที่เหลือก็ยังคงได้รับแจ้งเตือนตามปกติ
+        const uniqueLineIds = Array.from(new Set(approverList.map(a => a.line_id)));
         await Promise.allSettled(
-          approverList.map(approver => sendLineMessage(approver.line_id, messageText))
+          uniqueLineIds.map(lineId => sendLineMessage(lineId, messageText))
         );
       }
     } catch (lineError) {

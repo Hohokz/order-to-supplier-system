@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { OrderWithItems, OrderItem, OrderItemWithHistory } from '@/types/order';
 import { useAuth } from '@/context/AuthContext';
@@ -17,6 +18,8 @@ interface OrderItemWithDisplay extends OrderItem {
 
 export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const isOpenOrderView = searchParams.has('openOrder');
   const [activeSupplier, setActiveSupplier] = useState<string>('');
   const [isApproving, setIsApproving] = useState<boolean>(false);
   const [approverName, setApproverName] = useState<string | null>(null);
@@ -223,6 +226,9 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
                   const displayOrderUnit = itemData.order_unit || itemData.unit_name || '';
                   const history = itemData.history;
 
+                  const isNotOrdered = orderCount === 0;
+                  const hideInventoryDetails = isOpenOrderView && isNotOrdered;
+
                   return (
                     <tr key={item.id} className="transition-colors text-center bg-zinc-50/70 hover:bg-zinc-50">
                       <td className="hidden sm:table-cell py-4 px-2 text-zinc-500 font-mono text-xs">{item.displaySeq}</td>
@@ -233,12 +239,24 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
 
                       {/* คงเหลือ พร้อมหน่วย */}
                       <td className="py-4 px-1 font-mono">
-                        {itemData.quantity} <span className="text-[10px] opacity-70">{displayQuantityUnit}</span>
+                        {hideInventoryDetails ? (
+                          <span className="text-zinc-300">-</span>
+                        ) : (
+                          <>
+                            {itemData.quantity} <span className="text-[10px] opacity-70">{displayQuantityUnit}</span>
+                          </>
+                        )}
                       </td>
 
                       {/* สั่งเพิ่ม พร้อมหน่วย */}
                       <td className="py-4 px-1 font-mono font-black">
-                        +{orderCount} <span className="text-[10px] opacity-70">{displayOrderUnit}</span>
+                        {hideInventoryDetails ? (
+                          <span className="text-zinc-300">-</span>
+                        ) : (
+                          <>
+                            +{orderCount} <span className="text-[10px] opacity-70">{displayOrderUnit}</span>
+                          </>
+                        )}
                       </td>
 
                       {/* ประวัติย้อนหลัง */}
@@ -251,12 +269,16 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
 
                         return (
                           <td key={cycle} className={`py-2 px-1 ${cycle === 3 ? 'hidden sm:table-cell' : ''}`}>
-                            <div className="text-[9px] font-mono leading-tight">
-                              <div className="text-zinc-500">เหลือ:</div>
-                              <div className="text-zinc-500">{stock ?? '-'} <span className="opacity-60">{qUnit}</span></div>
-                              <div className="font-bold text-zinc-800">สั่ง:</div>
-                              <div className="font-bold text-zinc-800">{order ?? '-'} <span className="opacity-60">{oUnit}</span></div>
-                            </div>
+                            {hideInventoryDetails ? (
+                              <span className="text-zinc-300">-</span>
+                            ) : (
+                              <div className="text-[9px] font-mono leading-tight">
+                                <div className="text-zinc-500">เหลือ:</div>
+                                <div className="text-zinc-500">{stock ?? '-'} <span className="opacity-60">{qUnit}</span></div>
+                                <div className="font-bold text-zinc-800">สั่ง:</div>
+                                <div className="font-bold text-zinc-800">{order ?? '-'} <span className="opacity-60">{oUnit}</span></div>
+                              </div>
+                            )}
                           </td>
                         );
                       })}
