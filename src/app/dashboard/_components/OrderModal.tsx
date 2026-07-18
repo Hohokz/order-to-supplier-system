@@ -43,7 +43,17 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
   const processedItems: Record<string, OrderItemWithDisplay[]> = {};
 
   Object.keys(groupedItems).forEach((supplier) => {
-    const sorted = [...groupedItems[supplier]].sort((a, b) => Number(a.seq) - Number(b.seq));
+    const sorted = [...groupedItems[supplier]].sort((a, b) => {
+      const aSeq = a.order_seq ?? a.seq;
+      const bSeq = b.order_seq ?? b.seq;
+      if (aSeq !== bSeq) return aSeq - bSeq;
+      
+      const aHasOrderSeq = a.order_seq !== undefined && a.order_seq !== null;
+      const bHasOrderSeq = b.order_seq !== undefined && b.order_seq !== null;
+      if (aHasOrderSeq && !bHasOrderSeq) return -1;
+      if (!aHasOrderSeq && bHasOrderSeq) return 1;
+      return 0;
+    });
     processedItems[supplier] = sorted.map((item, index) => ({
       ...item,
       displaySeq: index + 1
@@ -231,7 +241,7 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
 
                   return (
                     <tr key={item.id} className="transition-colors text-center bg-zinc-50/70 hover:bg-zinc-50">
-                      <td className="hidden sm:table-cell py-4 px-2 text-zinc-500 font-mono text-xs">{item.displaySeq}</td>
+                      <td className="hidden sm:table-cell py-4 px-2 text-zinc-500 font-mono text-xs">{itemData.order_seq ?? itemData.seq}</td>
 
                       <td className="py-4 px-2 text-left max-w-[150px]">
                         <div className="font-bold break-words leading-tight">{itemData.inventory_name}</div>

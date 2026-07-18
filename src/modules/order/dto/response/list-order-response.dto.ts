@@ -13,6 +13,7 @@ export const OrderItemResponseSchema = z.object({
   approve_by: z.string().nullable().optional(),
   approve_date: z.any().nullable().optional(),
   supplier_remark: z.string().nullable().optional(),
+  order_seq: z.number().nullable().optional(),
 });
 
 export const OrderResponseSchema = z.object({

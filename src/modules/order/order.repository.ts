@@ -80,6 +80,7 @@ export const orderRepository = {
                             'quantity', oi.quantity, 
                             'order_quantity', oi.order_quantity,
                             'supplier_remark', oi.supplier_remark,
+                            'order_seq', oi.order_seq,
                             'approve_status', oi.approve_status,
                             'approve_by', oi.approve_by,
                             'approve_date', oi.approve_date
@@ -188,11 +189,11 @@ export const orderRepository = {
             const newOrderId = orderRes.rows[0].id;
 
             const itemSql = `
-            INSERT INTO order_items (order_id, inventory_id, quantity, order_quantity, approve_status, supplier_id, order_unit, quantity_unit, supplier_remark)
-            VALUES ($1, $2, $3, $4, 'PENDING', (SELECT supplier_id FROM inventories WHERE id = $2), $5, $6, $7);
+            INSERT INTO order_items (order_id, inventory_id, quantity, order_quantity, approve_status, supplier_id, order_unit, quantity_unit, supplier_remark, order_seq)
+            VALUES ($1, $2, $3, $4, 'PENDING', (SELECT supplier_id FROM inventories WHERE id = $2), $5, $6, $7, $8);
         `;
             for (const item of data.items) {
-                await client.query(itemSql, [newOrderId, item.inventory_id, item.quantity, item.order_quantity, item.order_unit, item.quantity_unit, item.supplier_remark]);
+                await client.query(itemSql, [newOrderId, item.inventory_id, item.quantity, item.order_quantity, item.order_unit, item.quantity_unit, item.supplier_remark, item.order_seq ?? null]);
             }
 
             const dtoSql = `
@@ -213,6 +214,7 @@ export const orderRepository = {
                          'order_quantity', oi.order_quantity,
                          'delivery_when', oi.delivery_when,
                          'supplier_remark', oi.supplier_remark,
+                         'order_seq', oi.order_seq,
                          'approve_status', oi.approve_status,
                          'approve_by', oi.approve_by,
                          'approve_date', oi.approve_date

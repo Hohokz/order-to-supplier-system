@@ -225,9 +225,15 @@ export function InventoryTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <form onSubmit={handleSave} className="bg-white rounded-2xl border border-zinc-200 w-full max-w-md p-6 space-y-4 shadow-xl">
             <h3 className="text-sm font-black border-b pb-2">{formData.id ? 'แก้ไขข้อมูลวัตถุดิบ' : 'เพิ่มวัตถุดิบใหม่เข้าคลัง'}</h3>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-zinc-500">ชื่อวัตถุดิบ *</label>
-              <input type="text" required disabled={isSubmitting} value={formData.inventory_name} onChange={(e) => setFormData({ ...formData, inventory_name: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold disabled:bg-zinc-50" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500">ลำดับ (Seq) *</label>
+                <input type="number" required min="0" disabled={isSubmitting} value={formData.seq} onChange={(e) => setFormData({ ...formData, seq: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold font-mono disabled:bg-zinc-50" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500">ชื่อวัตถุดิบ *</label>
+                <input type="text" required disabled={isSubmitting} value={formData.inventory_name} onChange={(e) => setFormData({ ...formData, inventory_name: e.target.value })} className="w-full border border-zinc-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-black font-semibold disabled:bg-zinc-50" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">

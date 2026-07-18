@@ -1,5 +1,4 @@
-import { query, pool } from '@/lib/db';
-import type { PoolClient } from 'pg';
+import { query } from '@/lib/db';
 import type { Inventory } from './entities/inventory.entities';
 import type { CreateInventoryPayload, UpdateInventoryPayload } from './dto/input-inventory.dto';
 
@@ -121,26 +120,12 @@ export const inventoryRepository = {
     return count > 0;
   },
 
-  async getNextSeq(supplier_id: string, client: PoolClient): Promise<number> {
-    const { rows } = await client.query<{ next_seq: number }>(
-      `SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq
-     FROM (
-       SELECT seq FROM inventories WHERE supplier_id = $1 FOR UPDATE
-     ) locked_rows`,
-      [supplier_id]
-    );
-    return rows[0].next_seq;
-  },
+
 
   async create(data: CreateInventoryPayload): Promise<Inventory> {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const now = new Date();
 
-      const nextSeq = await this.getNextSeq(data.supplier_id, client);
-      const now = new Date();
-
-      const sql = `
+    const sql = `
       WITH inserted AS (
         INSERT INTO inventories (
           seq, inventory_name, inventory_quantity, unit_price, status,
@@ -156,30 +141,22 @@ export const inventoryRepository = {
       LEFT JOIN suppliers s ON i.supplier_id = s.id
       LEFT JOIN units u ON i.unit_id = u.id
     `;
-      console.log('SQL', sql)
 
-      const { rows } = await client.query<Inventory>(sql, [
-        nextSeq,
-        data.inventory_name,
-        data.inventory_quantity,
-        data.unit_price,
-        data.status ?? 'ACTIVE',
-        data.supplier_id,
-        data.unit_id,
-        data.createdBy,
-        now,
-        data.safety_quantity,
-        data.remark
-      ]);
+    const { rows } = await query<Inventory>(sql, [
+      data.seq,
+      data.inventory_name,
+      data.inventory_quantity,
+      data.unit_price,
+      data.status ?? 'ACTIVE',
+      data.supplier_id,
+      data.unit_id,
+      data.createdBy,
+      now,
+      data.safety_quantity,
+      data.remark
+    ]);
 
-      await client.query('COMMIT');
-      return rows[0];
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    return rows[0];
   },
 
   async update(id: string, data: UpdateInventoryPayload): Promise<Inventory | null> {
@@ -188,6 +165,7 @@ export const inventoryRepository = {
     let paramIndex = 1;
 
     const mapping: Record<string, string> = {
+      seq: 'seq',
       inventory_name: 'inventory_name',
       inventory_quantity: 'inventory_quantity',
       unit_price: 'unit_price',
@@ -237,26 +215,7 @@ export const inventoryRepository = {
     const itemToDelete = await this.findById(id);
     if (!itemToDelete) return false;
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
-      await client.query('DELETE FROM inventories WHERE id = $1', [id]);
-
-      await client.query(
-        `UPDATE inventories 
-       SET seq = seq - 1 
-       WHERE supplier_id = $1 AND seq > $2`,
-        [itemToDelete.supplier_id, itemToDelete.seq]
-      );
-
-      await client.query('COMMIT');
-      return true;
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
-    }
+    await query('DELETE FROM inventories WHERE id = $1', [id]);
+    return true;
   }
 };

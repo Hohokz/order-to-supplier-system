@@ -33,6 +33,7 @@ type OrderHistory = {
 
 type FormItemType = MasterInventoryRow & {
   seq: number;
+  order_seq?: number | string;
   quantity: number | string;
   order_quantity: number | string;
   quantity_unit?: string;
@@ -116,6 +117,8 @@ export default function OrderPage() {
             unit: inventoryRow.unit,
             safety_quantity: inventoryRow.safety_quantity,
             seq: inventoryRow.seq,
+            order_seq: inventoryRow.seq,
+            remark: inventoryRow.remark,
             created_date: inventoryRow.created_date,
             quantity: '',
             order_quantity: '',
@@ -157,7 +160,7 @@ export default function OrderPage() {
     }
   }, [items, supplierNames, activeSupplier]);
 
-  const handleNumberChange = (itemId: string, field: 'quantity' | 'order_quantity', val: string) => {
+  const handleNumberChange = (itemId: string, field: 'quantity' | 'order_quantity' | 'order_seq', val: string) => {
     let cleanVal = val.replace(/[^0-9.]/g, '');
     const points = cleanVal.split('.');
     if (points.length > 2) {
@@ -255,7 +258,8 @@ export default function OrderPage() {
             order_quantity: Number(item.order_quantity),
             quantity_unit: currentQuantityUnit,
             order_unit: currentOrderUnit,
-            supplier_remark: currentRemark
+            supplier_remark: currentRemark,
+            order_seq: Number(item.order_seq) || item.seq
           };
         })
       };
@@ -273,7 +277,8 @@ export default function OrderPage() {
         quantity: '',
         order_quantity: '',
         quantity_unit: item.unit?.unit_name || '',
-        order_unit: item.unit?.unit_name || ''
+        order_unit: item.unit?.unit_name || '',
+        order_seq: item.seq
       })));
     } catch (err: unknown) {
       const errorMessage = extractErrorMessage(err, 'ไม่สามารถบันทึกคำสั่งซื้อได้');
@@ -439,6 +444,7 @@ export default function OrderPage() {
                     <table className={`w-full text-left border-collapse text-sm transition-all duration-300 ${isCurrentSkipped ? 'opacity-40 pointer-events-none grayscale select-none' : ''}`}>
                       <thead>
                         <tr className="border-b border-zinc-200 text-zinc-400 text-xs uppercase text-center">
+                          <th className="hidden sm:table-cell py-4 px-2 font-medium w-12 text-left">ลำดับ</th>
                           <th className="py-4 px-2 text-left font-medium min-w-[150px]">ชื่อสินค้า</th>
                           <th className="py-4 px-2 font-medium text-zinc-900 w-44">คงเหลือ *</th>
                           <th className="py-4 px-2 font-black text-black w-44">สั่งเพิ่ม *</th>
@@ -483,6 +489,18 @@ export default function OrderPage() {
 
                           return (
                             <tr key={item.id} className={`transition-colors text-center ${rowBgClass}`}>
+                              <td className="hidden sm:table-cell py-3 px-2 w-12 text-left">
+                                <div className="flex items-center">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={item.order_seq ?? item.seq}
+                                    disabled={isCurrentSkipped}
+                                    onChange={(e) => handleNumberChange(item.id, 'order_seq', e.target.value)}
+                                    className="w-10 font-mono text-xs text-zinc-500 font-bold bg-transparent border-b border-transparent focus:border-zinc-300 focus:outline-none disabled:opacity-50"
+                                  />
+                                </div>
+                              </td>
                               <td className="py-4 px-2 font-bold text-zinc-900 text-left">
                                 <span className="block truncate max-w-[140px] sm:max-w-none" title={item.inventory_name}>
                                   {item.inventory_name}

@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-// @ts-expect-error Swagger UI CSS import has no type declarations
 import 'swagger-ui-react/swagger-ui.css';
 
 // ใช้ dynamic import เพื่อป้องกัน Error จาก Server-Side Rendering (SSR) เนื่องจาก Swagger UI ต้องรันบนฝั่ง Client

@@ -34,8 +34,7 @@ export const orderController = {
                 return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
             }
 
-            // 3. เรียกใช้ service ที่จัดการแปลงข้อมูลให้เรียบร้อยแล้ว
-            const cycles = await orderService.getHistoryDate([id]);
+            const cycles = await orderService.getHistoryDate(id);
 
             // 4. ส่งค่ากลับไปเป็น Object 3 รอบ
             return NextResponse.json(cycles);

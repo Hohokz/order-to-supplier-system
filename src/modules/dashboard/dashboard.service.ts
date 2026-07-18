@@ -74,6 +74,7 @@ export const orderDashboardService = {
                     return {
                         ...orderedItem,
                         seq: catalogItem.seq,
+                        order_seq: orderedItem.order_seq,
                         safety_quantity: Number(catalogItem.safety_quantity)
                     };
                 } else {

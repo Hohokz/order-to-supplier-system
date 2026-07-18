@@ -50,6 +50,7 @@ function createMockUser(overrides: Partial<User> = {}): User {
         name: 'Test User',
         user_role: 'OBSERVER',
         line_id: 'line-default',
+        company_name: 'Test Company',
         created_date: now,
         updated_date: now,
         lasted_login_date: now,
@@ -94,6 +95,7 @@ describe('usersService', () => {
         name: 'Test User',
         line_id: 'line-123',
         user_role: 'OBSERVER',
+        company_name: 'Test Company',
       });
 
       expect(bcrypt.hash).toHaveBeenCalledWith('PlainPassword123', SALT_ROUNDS);
@@ -103,6 +105,7 @@ describe('usersService', () => {
         name: 'Test User',
         lineId: 'line-123',
         userRole: 'OBSERVER',
+        companyName: 'Test Company',
       });
       expect(result).not.toHaveProperty('password_hash');
     });
@@ -117,6 +120,7 @@ describe('usersService', () => {
           name: 'Test User',
           line_id: 'line-123',
           user_role: 'OBSERVER',
+          company_name: 'Test Company',
         })
       ).rejects.toThrow(UsernameAlreadyExistsError);
 
@@ -134,6 +138,9 @@ describe('usersService', () => {
 
       const result = await usersService.updateProfile('user-1', {
         name: 'New Name',
+        username: 'testuser',
+        lineId: 'line-123',
+        companyName: 'Test Company',
       });
 
       expect(result.name).toBe('New Name');
@@ -145,7 +152,7 @@ describe('usersService', () => {
       );
 
       await expect(
-        usersService.updateProfile('user-1', { username: 'taken' })
+        usersService.updateProfile('user-1', { username: 'taken', name: 'Test User', lineId: 'line-123', companyName: 'Test Company' })
       ).rejects.toThrow(UsernameAlreadyExistsError);
 
       expect(userRepository.updateProfile).not.toHaveBeenCalled();
@@ -158,6 +165,9 @@ describe('usersService', () => {
 
       const result = await usersService.updateProfile('user-1', {
         username: 'testuser',
+        name: 'Test User',
+        lineId: 'line-123',
+        companyName: 'Test Company',
       });
 
       expect(result.id).toBe('user-1');
@@ -168,7 +178,7 @@ describe('usersService', () => {
       vi.mocked(userRepository.updateProfile).mockResolvedValue(null);
 
       await expect(
-        usersService.updateProfile('missing', { name: 'New Name' })
+        usersService.updateProfile('missing', { name: 'New Name', username: 'testuser', lineId: 'line-123', companyName: 'Test Company' })
       ).rejects.toThrow(UserNotFoundError);
     });
   });

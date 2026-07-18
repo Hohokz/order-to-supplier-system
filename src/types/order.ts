@@ -13,6 +13,7 @@ export interface OrderEntity {
 export interface OrderItem {
   id: string;
   seq: number;
+  order_seq?: number;
   inventory_id: string;
   inventory_name: string;
   supplier_id: string;   // 💡 เพิ่มเข้ามาเพื่อให้หน้าจอนำไปใช้ฟิลเตอร์แยกแท็บ และส่งยิง API อนุมัติรายซัพพลายเออร์

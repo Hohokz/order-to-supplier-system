@@ -36,12 +36,15 @@ function createMockInventory(overrides: Partial<Inventory> = {}): Inventory {
 
     return {
         id: 'inv-1',
+        seq: 1,
         inventory_name: 'วัตถุดิบ A',
         inventory_quantity: 100,
         unit_price: 50.5,
         status: 'ACTIVE',
         supplier_id: 'sup-1',
         unit_id: 'kg-1',
+        safety_quantity: 10,
+        remark: '',
         created_by: 'admin-1',
         updated_by: 'admin-1',
         created_date: now,
@@ -106,12 +109,14 @@ describe('inventoriesService', () => {
     describe('createInventory', () => {
         it('creates a new inventory successfully', async () => {
             const payload = {
+                seq: 1,
                 inventory_name: 'วัตถุดิบ B',
                 inventory_quantity: 50,
                 unit_price: 100,
                 status: 'ACTIVE' as const,
                 supplier_id: 'sup-1',
                 unit_id: 'kg-1',
+                safety_quantity: 10,
                 createdBy: 'admin-1',
             };
 

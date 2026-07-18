@@ -156,7 +156,6 @@ describe('suppliersService', () => {
         updatedBy: 'admin-1',
       };
 
-      // @ts-expect-error: intentional partial payload for test
       await expect(suppliersService.updateSupplier('missing-id', payload)).rejects.toThrow(
         SupplierNotFoundError
       );

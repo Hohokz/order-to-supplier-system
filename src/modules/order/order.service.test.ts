@@ -77,7 +77,8 @@ describe('orderService', () => {
                         inventory_id: 'INV-101',
                         quantity: 2,
                         order_quantity: 2,
-                        delivery_when: 'IMMEDIATE'
+                        order_unit: 'kg',
+                        quantity_unit: 'kg'
                     }
                 ],
                 createdBy: 'admin-1',
@@ -104,7 +105,8 @@ describe('orderService', () => {
                         inventory_id: 'INV-101',
                         quantity: 2,
                         order_quantity: 2,
-                        delivery_when: 'IMMEDIATE'
+                        order_unit: 'kg',
+                        quantity_unit: 'kg'
                     }
                 ],
                 createdBy: 'admin-1',
@@ -124,7 +126,8 @@ describe('orderService', () => {
                         inventory_id: 'INV-999',
                         quantity: 5,
                         order_quantity: 5,
-                        delivery_when: 'IMMEDIATE'
+                        order_unit: 'kg',
+                        quantity_unit: 'kg'
                     }
                 ],
                 createdBy: 'admin-1',

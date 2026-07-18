@@ -4,6 +4,7 @@ import { INVENTORY_STATUS } from '../entities/inventory.entities';
 extendZodWithOpenApi(z);
 
 export const CreateInventoryInput = z.object({
+  seq: z.number().min(0, 'ลำดับต้องไม่ติดลบ'),
   inventory_name: z.string().min(1, 'กรุณาระบุชื่อสินค้า/วัตถุดิบ').max(255),
   inventory_quantity: z.number().min(0, 'จำนวนต้องไม่ติดลบ'),
   unit_price: z.number().min(0, 'ราคาต่อหน่วยต้องไม่ติดลบ'),

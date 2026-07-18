@@ -13,6 +13,7 @@ export interface SupplierInventoryRow {
 export interface OrderItem {
   id: string;
   seq: number;
+  order_seq?: number;
   inventory_id: string;
   inventory_name: string;
   supplier_id: string;

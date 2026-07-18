@@ -8,9 +8,6 @@ import { userRepository } from '../users/user.repository';
 import { sendLineMessage } from '@/lib/line';
 import { query } from '@/lib/db'; // 💡 1. เพิ่มอิมพอร์ตสำหรับยิง SQL ตรงเพื่อดึงรายชื่อกลุ่มผู้อนุมัติ
 
-interface ItemHistoryWithDateRow {
-  created_date: string | Date;
-}
 
 function transformToCycles(rows: ItemHistoryWithDateRow[]) {
   return {
@@ -59,8 +56,8 @@ export const orderService = {
 
     return historyMap;
   },
-  async getHistoryDate(orderIds: number[]) {
-    const rows = await orderRepository.getHistoryDate(orderIds);
+  async getHistoryDate(orderId: number) {
+    const rows = await orderRepository.getHistoryDate(orderId);
     // นำมาจัดรูปเป็น { cycle_1_date: ..., cycle_2_date: ... } ก่อนส่งให้ Controller
     return transformToCycles(rows);
   },
