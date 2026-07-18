@@ -47,7 +47,7 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
       const aSeq = a.order_seq ?? a.seq;
       const bSeq = b.order_seq ?? b.seq;
       if (aSeq !== bSeq) return aSeq - bSeq;
-      
+
       const aHasOrderSeq = a.order_seq !== undefined && a.order_seq !== null;
       const bHasOrderSeq = b.order_seq !== undefined && b.order_seq !== null;
       if (aHasOrderSeq && !bHasOrderSeq) return -1;
@@ -235,13 +235,20 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
                   const displayQuantityUnit = itemData.quantity_unit || itemData.unit_name || '';
                   const displayOrderUnit = itemData.order_unit || itemData.unit_name || '';
                   const history = itemData.history;
+                  const displaySeq = itemData.order_seq !== null && itemData.order_seq !== undefined && itemData.order_seq !== 0 ? itemData.order_seq : itemData.seq;
 
                   const isNotOrdered = orderCount === 0;
                   const hideInventoryDetails = isNotOrdered;
 
                   return (
                     <tr key={item.id} className="transition-colors text-center bg-zinc-50/70 hover:bg-zinc-50">
-                      <td className="hidden sm:table-cell py-4 px-2 text-zinc-500 font-mono text-xs">{itemData.order_seq ?? itemData.seq}</td>
+                      <td className="hidden sm:table-cell py-4 px-2 text-zinc-500 font-mono text-xs">
+                        {hideInventoryDetails ? (
+                          <span className="text-zinc-300">-</span>
+                        ) : (
+                          displaySeq
+                        )}
+                      </td>
 
                       <td className="py-4 px-2 text-left max-w-[150px]">
                         <div className="font-bold break-words leading-tight">{itemData.inventory_name}</div>
