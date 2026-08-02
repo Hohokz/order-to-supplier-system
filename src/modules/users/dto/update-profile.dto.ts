@@ -19,14 +19,14 @@ export const CreateUserSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   lineId: z.string().default(''),
   userRole: z.enum(["APPROVER", "OBSERVER"]),
-  companyName: z.string().min(1, 'Company name is required'),
+  companyName: z.string().optional(),
 });
 
 export const UpdateUserDto = z.object({
   name: z.string(),
   username: z.string(),
   lineId: z.string(),
-  companyName: z.string(),
+  companyName: z.string().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof CreateUserSchema>;

@@ -60,7 +60,7 @@ export const usersService = {
       name: data.name,
       lineId: data.line_id,
       userRole: data.user_role,
-      companyName: data.company_name
+      companyName: data.company_name ?? ''
     });
 
     return toSafeUser(user);

@@ -43,7 +43,7 @@ export const userRepository = {
       `INSERT INTO users (username, password_hash, name, user_role, line_id, created_date, updated_date, company_name)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [data.username, data.passwordHash, data.name, data.userRole, data.lineId, now, now, data.companyName]
+      [data.username, data.passwordHash, data.name, data.userRole, data.lineId, now, now, data.companyName ?? '']
     );
 
     const user = rows[0];

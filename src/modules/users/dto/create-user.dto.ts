@@ -9,7 +9,7 @@ export const createProfileSchema = z.object({
     line_id: z.string().min(1),
     name: z.string().min(1),
     user_role: z.enum(['APPROVER', 'OBSERVER']).default('OBSERVER'),
-    company_name: z.string().min(1),
+    company_name: z.string().optional(),
 });
 
 export type CreateProfileDto = z.infer<typeof createProfileSchema>;

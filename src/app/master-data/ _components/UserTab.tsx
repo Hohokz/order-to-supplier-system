@@ -10,7 +10,7 @@ interface UserRow {
     name?: string;
     user_role: 'APPROVER' | 'OBSERVER';
     line_id?: string;
-    company_name?: string;
+
 }
 
 const initialFormData = {
@@ -20,7 +20,7 @@ const initialFormData = {
     password: '',
     user_role: 'OBSERVER',
     line_id: '',
-    company_name: ''
+
 };
 
 export function UserTab() {
@@ -65,7 +65,7 @@ export function UserTab() {
             password: '',
             user_role: item.user_role,
             line_id: item.line_id || '',
-            company_name: item.company_name || ''
+
         });
         setIsEditMode(true);
         setIsModalOpen(true);
@@ -85,8 +85,7 @@ export function UserTab() {
                 userRole: formData.user_role,
                 password: formData.password,
                 password_hash: formData.password,
-                company_name: 'KURU',
-                companyName: 'KURU'
+
             };
 
             if (isEditMode) {
@@ -141,8 +140,7 @@ export function UserTab() {
     const filteredData = data.filter(item =>
         item.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.user_role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
+        item.user_role?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -173,7 +171,7 @@ export function UserTab() {
                         <tr className="border-b border-zinc-200 text-zinc-400">
                             <th className="py-4 px-2 font-medium">ชื่อบัญชี (Username)</th>
                             <th className="py-4 px-2 font-medium">ชื่อพนักงาน (Name)</th>
-                            <th className="py-4 px-2 font-medium">ชื่อบริษัท (Company)</th>
+
                             <th className="py-4 px-2 font-medium text-center">สิทธิ์การเข้าถึง (Role)</th>
                             <th className="py-4 px-2 font-medium">LINE ID</th>
                             <th className="py-4 px-2 font-medium text-right">การจัดการ</th>
@@ -182,18 +180,18 @@ export function UserTab() {
                     <tbody className="divide-y divide-zinc-100 text-zinc-800">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={6} className="py-8 text-center text-zinc-400 font-bold animate-pulse">กำลังเรียกรายชื่อสิทธิ์พนักงาน...</td>
+                                <td colSpan={5} className="py-8 text-center text-zinc-400 font-bold animate-pulse">กำลังเรียกรายชื่อสิทธิ์พนักงาน...</td>
                             </tr>
                         ) : filteredData.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="py-8 text-center text-zinc-400 font-bold">ไม่พบบัญชีผู้ใช้ในระบบ</td>
+                                <td colSpan={5} className="py-8 text-center text-zinc-400 font-bold">ไม่พบบัญชีผู้ใช้ในระบบ</td>
                             </tr>
                         ) : (
                             filteredData.map((item) => (
                                 <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors">
                                     <td className="py-4 px-2 font-mono font-bold text-zinc-900">{item.username}</td>
                                     <td className="py-4 px-2 font-medium text-zinc-700">{item.name || '-'}</td>
-                                    <td className="py-4 px-2 text-zinc-600 font-medium">{item.company_name || '-'}</td>
+
                                     <td className="py-4 px-2 text-center">
                                         <span className={`px-3 py-1 text-[11px] font-black rounded-full font-mono 
                                             ${item.user_role === 'APPROVER' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-zinc-100 text-zinc-500'}`}>
