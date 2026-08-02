@@ -256,13 +256,11 @@ export function OrderModal({ order, onClose, onApprove }: OrderModalProps) {
 
                       {/* คงเหลือ พร้อมหน่วย */}
                       <td className="py-4 px-1 font-mono">
-                        {hideInventoryDetails ? (
-                          <span className="text-zinc-300">-</span>
-                        ) : (
+
                           <>
                             {itemData.quantity} <span className="text-[10px] opacity-70">{displayQuantityUnit}</span>
                           </>
-                        )}
+  
                       </td>
 
                       {/* สั่งเพิ่ม พร้อมหน่วย */}
